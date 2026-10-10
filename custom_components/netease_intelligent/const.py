@@ -82,6 +82,16 @@ def sweeper_activity(work_mode: str, fault_code: int, charge_status: int) -> str
     # 充电中视为 docked（在充电座上），否则视为 idle。
     return "docked" if charge_status == SWEEPER_CHARGE_CHARGING else "idle"
 
+
+def sweeper_battery_percent(battery: int) -> int:
+    """把接口 ``battery``（100=空电、200=满电）换算为 0-100 百分比。
+
+    App 侧 ``HomeActivity`` 显示的百分比为 ``getBattery() - 100``（并对 <=0
+    钳制为 1），``AutoControlView`` 以 ``getBattery() == 200`` 判定充电完成；
+    这里钳制到 ``[0, 100]`` 区间，不复制 App 的「<=0 显示为 1」UI 特判。
+    """
+    return max(0, min(100, battery - 100))
+
 # 家庭数据轮询间隔（见 coordinator.py）。
 UPDATE_INTERVAL: Final = timedelta(minutes=5)
 

@@ -74,3 +74,14 @@ def test_equip_unique_identifier() -> None:
     assert m.Equip(sn="SN1", id="eq1").unique_identifier == "SN1"
     assert m.Equip(sn="", id="eq1").unique_identifier == "eq1"
     assert m.Equip(sn="", id="").unique_identifier == ""
+
+
+def test_sweeper_battery_percent() -> None:
+    """接口 battery（100=空/200=满）换算为 0-100 百分比并钳制。"""
+    assert c.sweeper_battery_percent(100) == 0
+    assert c.sweeper_battery_percent(200) == 100
+    assert c.sweeper_battery_percent(150) == 50
+    assert c.sweeper_battery_percent(99) == 0
+    assert c.sweeper_battery_percent(201) == 100
+    assert c.sweeper_battery_percent(0) == 0
+    assert c.sweeper_battery_percent(-10) == 0

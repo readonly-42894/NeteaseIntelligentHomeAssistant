@@ -21,7 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, MANUFACTURER, NAME
+from .const import DOMAIN, MANUFACTURER, NAME, sweeper_battery_percent
 from .coordinator import (
     NeteaseIntelligentData,
     NeteaseIntelligentSweeperCoordinator,
@@ -131,6 +131,9 @@ class NeteaseIntelligentSensor(SensorEntity):
         raw = getattr(data, self.entity_description.key, None)
         if raw is None:
             return None
+        if self.entity_description.key == "battery":
+            # 接口 battery 为 100=空电/200=满电，减 100 得 0-100 百分比。
+            return sweeper_battery_percent(raw)
         value = raw * self.entity_description.scale
         if self.entity_description.scale == 1.0:
             return int(value)
