@@ -460,87 +460,30 @@ for e in EP:
         S.setdefault("ResponseWrapper_ListResponse_" + elem, wrapper_schema(
             listresponse_schema(prop(("ref", elem)))))
 
-# ================= SPLIT & WRITE =================
-# 单一 openapi.yaml 过长（4700+ 行），按模块（tag）拆成多个自包含的 OpenAPI 文档，
-# 输出到 docs/openapi/<tag>.yaml。每个文件只含该模块的 paths，以及这些 paths 传递
-# 引用的 schemas（含自动生成的 ResponseWrapper 包装 schema），可独立阅读。
-
-INFO = {
-    "title": "网易智造 App API",
-    "version": "5.3.5",
-    "description": "从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。"
-                   "基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。"
-                   "统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。"
-                   "登录相关端点（tag=login）走网易 URS SDK（https://sdk.reg.163.com），"
-                   "其响应结构与 ResponseWrapper 不同，见各端点说明。",
+spec = {
+    "openapi": "3.0.3",
+    "info": {
+        "title": "网易智造 App API",
+        "version": "5.3.5",
+        "description": "从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。"
+                       "基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。"
+                       "统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。"
+                       "登录相关端点（tag=login）走网易 URS SDK（https://sdk.reg.163.com），"
+                       "其响应结构与 ResponseWrapper 不同，见各端点说明。",
+    },
+    "servers": [
+        {"url": "https://3c.163.com", "description": "线上/Release"},
+        {"url": "https://t2.3c.163.com", "description": "Alpha/Beta"},
+        {"url": "https://t.3c.163.com", "description": "Develop"},
+    ],
+    "tags": [{"name": k, "description": v} for k, v in TAGDESC.items()],
+    "paths": paths,
+    "components": {"schemas": S},
 }
-SERVERS = [
-    {"url": "https://3c.163.com", "description": "线上/Release"},
-    {"url": "https://t2.3c.163.com", "description": "Alpha/Beta"},
-    {"url": "https://t.3c.163.com", "description": "Develop"},
-]
 
-
-def collect_refs(node: object) -> set[str]:
-    """递归收集嵌套结构里所有 ``#/components/schemas/<Name>`` 引用名。"""
-    names: set[str] = set()
-    if isinstance(node, dict):
-        for key, value in node.items():
-            if key == "$ref" and isinstance(value, str) and value.startswith("#/components/schemas/"):
-                names.add(value.rsplit("/", 1)[-1])
-            else:
-                names |= collect_refs(value)
-    elif isinstance(node, list):
-        for item in node:
-            names |= collect_refs(item)
-    return names
-
-
-def schema_closure(roots: set[str]) -> set[str]:
-    """从一组 schema 名出发，求其传递依赖闭包。"""
-    closure = set(roots)
-    stack = list(roots)
-    while stack:
-        name = stack.pop()
-        schema = S.get(name)
-        if schema is None:
-            continue
-        for ref in collect_refs(schema):
-            if ref not in closure:
-                closure.add(ref)
-                stack.append(ref)
-    return closure
-
-
-out_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "openapi"
-)
-os.makedirs(out_dir, exist_ok=True)
-
-total_paths = total_schemas = 0
-for tag, tagdesc in TAGDESC.items():
-    tag_paths: dict[str, dict[str, dict]] = {}
-    roots: set[str] = set()
-    for path, methods in paths.items():
-        for method, op in methods.items():
-            if tag in op.get("tags", []):
-                tag_paths.setdefault(path, {})[method] = op
-                roots |= collect_refs(op)
-    closure = schema_closure(roots)
-    tag_schemas = {name: S[name] for name in sorted(closure)}
-    tag_spec = {
-        "openapi": "3.0.3",
-        "info": dict(INFO, description=INFO["description"] + f" 本文件仅含 {tag}（{tagdesc}）模块。"),
-        "servers": SERVERS,
-        "tags": [{"name": tag, "description": tagdesc}],
-        "paths": tag_paths,
-        "components": {"schemas": tag_schemas},
-    }
-    out = os.path.join(out_dir, f"{tag}.yaml")
-    with open(out, "w", encoding="utf-8") as f:
-        yaml.dump(tag_spec, f, allow_unicode=True, sort_keys=False, default_flow_style=False, width=1000)
-    print(f"written: {out}  paths={len(tag_paths)}  schemas={len(tag_schemas)}")
-    total_paths += len(tag_paths)
-    total_schemas += len(tag_schemas)
-
-print("total paths:", total_paths, "schemas:", total_schemas, "(每个文件独立自包含)")
+# 输出到 docs/ 目录（本脚本位于 scripts/ 下，向上两级即仓库根）
+out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "openapi.yaml")
+with open(out, "w", encoding="utf-8") as f:
+    yaml.dump(spec, f, allow_unicode=True, sort_keys=False, default_flow_style=False, width=1000)
+print("written:", out)
+print("paths:", len(paths), "schemas:", len(S))

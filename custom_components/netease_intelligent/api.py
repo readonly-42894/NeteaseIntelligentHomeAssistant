@@ -5,7 +5,7 @@
 调用 ``/ai-app`` 业务接口，并按统一响应结构 ``ResponseWrapper`` 解包
 （``code=0`` 成功，``result`` 为业务数据，见第 5 节）。
 
-当前实现家庭域端点（``docs/openapi/kernel.yaml``）：
+当前实现家庭域端点（``docs/openapi.yaml``）：
 
 - ``GET /ai-app/family/info`` —— 家庭列表信息（含房间/成员/设备）；
 - ``GET /ai-app/family/query`` —— 查询单个家庭；
@@ -127,13 +127,13 @@ def build_ua_info(
     encoded = quote(json.dumps(payload, separators=(",", ":")), safe=".-*_")
     return encoded.replace("%20", "+")
 
-# 端点在 kernel/config/Action.java（见 docs/openapi/kernel.yaml 的 kernel tag）。
+# 端点在 kernel/config/Action.java（见 docs/openapi.yaml 的 kernel tag）。
 PATH_FAMILY_INFO: str = "/ai-app/family/info"
 PATH_FAMILY_QUERY: str = "/ai-app/family/query"
 PATH_FAMILY_ENV_INFO: str = "/ai-app/family/env/info/homepage"
 PATH_EQUIP_LIST: str = "/ai-app/equip/list"
 
-# 扫地机模块端点（见 docs/openapi/sweeper.yaml 的 sweeper tag）。
+# 扫地机模块端点（见 docs/openapi.yaml 的 sweeper tag）。
 PATH_SWEEPER_DEVICE_DATA: str = "/ai-app/sweeper/rv02/getDeviceData"
 
 

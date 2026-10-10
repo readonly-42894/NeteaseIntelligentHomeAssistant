@@ -1,7 +1,7 @@
 # 网易智造 App API 工作原理
 
 > 本文档说明网易智造 App（主包 `com.netease.intelligent`，versionName 5.3.5）HTTP API 的工作机制：架构、网络栈、认证、统一响应、接口组织与登录流程。
-> 端点级别的完整定义见 [`openapi/`](./openapi/)（OpenAPI 3.0.3，按模块拆分，104 个 path / 106 个端点，索引见 [`openapi/README.md`](./openapi/README.md)）。
+> 端点级别的完整定义见 [`openapi.yaml`](./openapi.yaml)（OpenAPI 3.0.3，104 个 path / 130 个 schema / 106 个端点）。
 
 ## 1. 架构总览
 
@@ -99,7 +99,7 @@ H5 对应域名：`m.3c.163.com` / `t2m.3c.163.com` / `tm.3c.163.com`。
 { "list": [T...], "page": PageInfo{ pageCnt, pageIndex, pageSize, totalCnt } }
 ```
 
-在 `openapi/*.yaml` 中，每个端点的响应 schema 都已按 `ResponseWrapper<T>`（列表再套一层 `ResponseWrapper<ListResponse<T>>`）包装。
+在 `openapi.yaml` 中，每个端点的响应 schema 都已按 `ResponseWrapper<T>`（列表再套一层 `ResponseWrapper<ListResponse<T>>`）包装。
 
 ## 6. 接口组织（模块 → 业务域）
 
@@ -190,7 +190,7 @@ URS 请求均为 `POST` + `application/x-www-form-urlencoded`。业务参数（`
 
 ### 7.9 集成实现
 
-`custom_components/netease_intelligent/` 的登录配置流实现了**短信验证码**与**邮箱密码**两种真实登录，并保留手动录入 Cookie 的兜底方式；协议核心逻辑在 `urs.py`（`UrsClient`，含上述密码学与握手），配置流在 `config_flow.py`。端点定义见 [`openapi/login.yaml`](./openapi/login.yaml) 的 `login` tag。
+`custom_components/netease_intelligent/` 的登录配置流实现了**短信验证码**与**邮箱密码**两种真实登录，并保留手动录入 Cookie 的兜底方式；协议核心逻辑在 `urs.py`（`UrsClient`，含上述密码学与握手），配置流在 `config_flow.py`。端点定义见 [`openapi.yaml`](./openapi.yaml) 的 `login` tag。
 
 ## 8. 调用示例
 
@@ -226,7 +226,7 @@ Cookie: ONE_TOKEN=<token>; ONE_TOKEN_ID=<id>; UA-INFO=<info>
 jadx --no-res -d decompiled 网易智造_5.3.5.apk
 ```
 
-- `openapi/*.yaml` 由 [`scripts/gen_openapi.py`](../scripts/gen_openapi.py) 生成，改端点优先改脚本再重新生成。
+- `openapi.yaml` 由 [`scripts/gen_openapi.py`](../scripts/gen_openapi.py) 生成，改端点优先改脚本再重新生成。
 
 ## 10. 集成实现（家庭数据抽象）
 
