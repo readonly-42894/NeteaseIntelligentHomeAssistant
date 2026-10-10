@@ -23,7 +23,8 @@
 | `hacs.json` | HACS 清单 |
 | `.github/workflows/validate.yml` | HACS Action + hassfest 校验工作流 |
 | `docs/openapi.yaml` | OpenAPI 3.0.3 端点/schema 规范 |
-| `docs/API工作原理.md` | API 工作机制说明（架构/认证/响应结构/模块组织/登录流程） |
+| `docs/API工作原理.md` | API 工作机制总览（架构/网络栈/Base URL/接口组织/源码定位） |
+| `docs/api/` | API 专题文档（认证机制/统一响应结构/登录流程/调用示例/集成实现） |
 | `source/` | 原始安装包（Git LFS 跟踪） |
 | `scripts/` | 生成器 `gen_openapi.py` 与辅助脚本 `extract_fields.sh` |
 | `tests/` | 单元测试（`pytest`，见「测试」一节） |
