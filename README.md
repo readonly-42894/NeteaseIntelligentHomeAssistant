@@ -26,6 +26,7 @@
 | `docs/API工作原理.md` | API 工作机制说明（架构/认证/响应结构/模块组织/登录流程） |
 | `source/` | 原始安装包（Git LFS 跟踪） |
 | `scripts/` | 生成器 `gen_openapi.py` 与辅助脚本 `extract_fields.sh` |
+| `tests/` | 单元测试（`pytest`，见「测试」一节） |
 
 ## 集成开发状态
 
@@ -52,6 +53,16 @@
 - 重新生成 OpenAPI 规范：`python3 scripts/gen_openapi.py`
 - 拉取 APK 实际内容：`git lfs pull`
 - 端点与机制详见 [`docs/openapi/`](docs/openapi/) 与 [`docs/API工作原理.md`](docs/API工作原理.md)。
+
+## 测试
+
+```bash
+pip install -r requirements_test.txt
+pytest
+```
+
+`tests/` 覆盖家庭域数据模型（`models.py`）的反序列化与容错。测试环境通过 `tests/conftest.py`
+用合成包名加载 `const` / `models` 这两个纯 Python 模块，避免引入 `homeassistant` 依赖。
 
 ## 许可
 
