@@ -20,6 +20,8 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, Self, get_args, get_origin, get_type_hints
 
+from .const import SWEEPER_PRODUCT_IDS
+
 __all__ = [
     "Equip",
     "EnvInfo",
@@ -29,6 +31,7 @@ __all__ = [
     "FamilyInfo",
     "Member",
     "Room",
+    "SweeperDeviceData",
 ]
 
 
@@ -77,6 +80,7 @@ class _Model:
 class Equip(_Model):
     """设备（App DTO ``Equip``）。"""
 
+    id: str = ""  # equipId（字符串），调用 sweeper 等模块端点时作为参数
     dev_type: int = 0
     bind_type: int = 0
     product_id: int = 0
@@ -104,6 +108,11 @@ class Equip(_Model):
     wap_url: str = ""
     wifi_mac_addr: str = ""
     is_deleted: bool = False
+
+    @property
+    def is_sweeper(self) -> bool:
+        """是否为扫地机器人（``product_id`` 属于 RV02/RV03）。"""
+        return self.product_id in SWEEPER_PRODUCT_IDS
 
 
 @dataclass
@@ -198,3 +207,30 @@ class FamilyInfo(_Model):
     family_list: list[Family] = field(default_factory=list)
     sort_info: str = ""
     unread: int = 0
+
+
+@dataclass
+class SweeperDeviceData(_Model):
+    """扫地机实时数据（App DTO ``SweeperDeviceData``，``GET /ai-app/sweeper/rv02/getDeviceData``）。"""
+
+    area_clean_flag: int = 0
+    is_online: bool = False
+    is_ota_updating: bool = False
+    is_room_cleaning_status: bool = False
+    charge_status: int = 0
+    battery: int = 0
+    clean_size: int = 0
+    clean_time: int = 0
+    fault_code: int = 0
+    fault_type: int = 0
+    today_clean_size: int = 0
+    today_clean_time: int = 0
+    clean_scheme_id: int = 0
+    map_id: int = 0
+    map_type: int = 0
+    repeat_clean: int = 0
+    map_url: str = ""
+    protocol_version: str = ""
+    water_control: int = 0
+    wind_power: int = 0
+    work_mode: str = ""

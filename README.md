@@ -33,6 +33,7 @@
 - [x] 最小可加载集成（Config Flow 手动录入 Cookie 凭据）
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
 - [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
+- [x] 扫地机器人设备登记（识别 `productId` RV02/RV03，登记进 HA 设备注册表；实体待实现）
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
@@ -41,10 +42,10 @@
 | 文件 | 说明 |
 |------|------|
 | `config_flow.py` / `urs.py` | 登录配置流与网易 URS 登录 SDK 协议实现 |
-| `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），当前实现家庭域端点 |
-| `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO） |
+| `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），实现家庭域与扫地机端点 |
+| `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO）与扫地机数据 DTO（`SweeperDeviceData`） |
 | `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data` |
-| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]` |
+| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，并登记扫地机器人设备 |
 
 ## API 逆向
 

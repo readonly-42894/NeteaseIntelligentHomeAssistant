@@ -4,13 +4,49 @@ from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import NeteaseIntelligentApiClient
-from .const import CONF_TOKEN, CONF_TOKEN_ID, CONF_UA_INFO, DOMAIN
+from .const import (
+    CONF_TOKEN,
+    CONF_TOKEN_ID,
+    CONF_UA_INFO,
+    DOMAIN,
+    MANUFACTURER,
+    NAME,
+)
 from .coordinator import NeteaseIntelligentCoordinator
 
 PLATFORMS: list[str] = []
+
+
+def _register_sweeper_devices(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: NeteaseIntelligentCoordinator,
+) -> None:
+    """把家庭数据中的扫地机器人登记进设备注册表（暂不创建实体）。
+
+    设备标识优先用序列号 ``sn``，缺失时回退到 ``id``（equipId）；
+    均缺失则跳过（无法唯一标识）。
+    """
+    device_registry = dr.async_get(hass)
+    for family in coordinator.data.values():
+        for equip in family.equips:
+            if not equip.is_sweeper:
+                continue
+            identifier = equip.sn or equip.id
+            if not identifier:
+                continue
+            device_registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(DOMAIN, identifier)},
+                manufacturer=MANUFACTURER,
+                model=equip.model or None,
+                name=equip.alias or equip.name or NAME,
+                suggested_area=equip.room_name or None,
+            )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -26,6 +62,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
+    # 登记扫地机器人设备（仅设备，不创建实体）；后续每次数据刷新同步一次，
+    # 以覆盖新增/移除的扫地机。
+    _register_sweeper_devices(hass, entry, coordinator)
+    coordinator.async_add_listener(
+        lambda: _register_sweeper_devices(hass, entry, coordinator)
+    )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

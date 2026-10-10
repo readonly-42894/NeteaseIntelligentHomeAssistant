@@ -10,7 +10,8 @@
 - ``GET /ai-app/family/info`` —— 家庭列表信息（含房间/成员/设备）；
 - ``GET /ai-app/family/query`` —— 查询单个家庭；
 - ``GET /ai-app/family/env/info/homepage`` —— 家庭环境信息；
-- ``GET /ai-app/equip/list`` —— 账号下设备列表。
+- ``GET /ai-app/equip/list`` —— 账号下设备列表；
+- ``GET /ai-app/sweeper/rv02/getDeviceData`` —— 扫地机实时数据。
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from typing import Any
 import aiohttp
 
 from .const import BASE_URL
-from .models import Equip, Family, FamilyEnv, FamilyInfo
+from .models import Equip, Family, FamilyEnv, FamilyInfo, SweeperDeviceData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +71,9 @@ PATH_FAMILY_INFO: str = "/ai-app/family/info"
 PATH_FAMILY_QUERY: str = "/ai-app/family/query"
 PATH_FAMILY_ENV_INFO: str = "/ai-app/family/env/info/homepage"
 PATH_EQUIP_LIST: str = "/ai-app/equip/list"
+
+# 扫地机模块端点（见 docs/openapi.yaml 的 sweeper tag）。
+PATH_SWEEPER_DEVICE_DATA: str = "/ai-app/sweeper/rv02/getDeviceData"
 
 
 class ApiError(Exception):
@@ -170,3 +174,10 @@ class NeteaseIntelligentApiClient:
         """``GET /ai-app/equip/list``：账号下设备列表。"""
         result = await self._request("GET", PATH_EQUIP_LIST) or {}
         return [Equip.from_dict(item) for item in result.get("list", [])]
+
+    async def get_sweeper_data(self, equip_id: str) -> SweeperDeviceData:
+        """``GET /ai-app/sweeper/rv02/getDeviceData``：扫地机实时数据。"""
+        result = await self._request(
+            "GET", PATH_SWEEPER_DEVICE_DATA, params={"equipId": equip_id}
+        )
+        return SweeperDeviceData.from_dict(result)

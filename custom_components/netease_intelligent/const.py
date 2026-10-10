@@ -9,6 +9,10 @@ DOMAIN: Final = "netease_intelligent"
 NAME: Final = "网易智造"
 MANUFACTURER: Final = "Netease"
 
+# 扫地机器人型号的 productId（App 侧常量 Product.RV02=9 / Product.RV03=26，
+# 见 docs/API工作原理.md 第 6 节；RV03 为 Pro 款）。
+SWEEPER_PRODUCT_IDS: Final = frozenset({9, 26})
+
 # 家庭数据轮询间隔（见 coordinator.py）。
 UPDATE_INTERVAL: Final = timedelta(minutes=5)
 
