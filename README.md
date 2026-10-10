@@ -36,7 +36,7 @@
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
 - [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
 - [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor`
-- [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG）
+- [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG；默认按清扫结果显示已清扫地面/房间与轨迹，叠加虚拟墙、清扫区域与带朝向的机器人/充电座标记）
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
@@ -52,7 +52,7 @@
 | `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
 | `image.py` | 扫地机器人 `image` 实体：把 `mapUrl` 地图包渲染为 PNG 展示 |
 | `map_parser.py` | 扫地机二进制地图包解析（复刻 App `MapDataParser`，纯标准库） |
-| `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 `MapBaseSpirit` 上色与坐标变换） |
+| `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 `MapBaseSpirit` 上色与坐标变换；`history` 模式显示清扫结果与轨迹，叠加墙/区域/朝向标记） |
 | `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor/image 实体 |
 
 ## API 逆向
