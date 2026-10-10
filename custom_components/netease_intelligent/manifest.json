@@ -8,6 +8,6 @@
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/readonly-42894/NeteaseIntelligentHomeAssistant/issues",
-  "requirements": [],
+  "requirements": ["cryptography"],
   "version": "0.1.0"
 }

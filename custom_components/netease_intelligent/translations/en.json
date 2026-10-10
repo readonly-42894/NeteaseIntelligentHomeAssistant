@@ -3,6 +3,36 @@
     "step": {
       "user": {
         "title": "Netease Intelligent",
+        "menu_options": {
+          "phone": "Sign in with SMS code",
+          "email": "Sign in with email and password",
+          "manual": "Enter cookie token manually"
+        }
+      },
+      "phone": {
+        "title": "Phone sign-in",
+        "description": "Enter the phone number of your Netease Intelligent account. We will send an SMS code.",
+        "data": {
+          "phone": "Phone number"
+        }
+      },
+      "sms_code": {
+        "title": "Enter code",
+        "description": "Enter the SMS code sent to {phone}.",
+        "data": {
+          "sms_code": "SMS code"
+        }
+      },
+      "email": {
+        "title": "Email sign-in",
+        "description": "Enter the email and password of your Netease Intelligent account.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "manual": {
+        "title": "Enter cookie manually",
         "description": "Enter the credentials obtained from your Netease Intelligent account (cookies: ONE_TOKEN / ONE_TOKEN_ID).",
         "data": {
           "token": "ONE_TOKEN login token",
@@ -14,6 +44,14 @@
       "already_configured": "This account is already configured."
     },
     "error": {
+      "cannot_connect": "Could not connect to the server, please try again later.",
+      "invalid_code": "Invalid code, please try again.",
+      "invalid_auth": "Invalid account or password.",
+      "too_frequent": "Too many login attempts, please try again later.",
+      "account_locked": "The account is locked.",
+      "user_not_found": "User not found.",
+      "server_error": "Server error, please try again later.",
+      "id_invalid": "Session expired, please start over.",
       "unknown": "An unknown error occurred."
     }
   }

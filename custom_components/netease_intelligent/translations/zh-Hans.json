@@ -3,6 +3,36 @@
     "step": {
       "user": {
         "title": "网易智造",
+        "menu_options": {
+          "phone": "短信验证码登录",
+          "email": "邮箱密码登录",
+          "manual": "手动填写 Cookie 令牌"
+        }
+      },
+      "phone": {
+        "title": "手机号登录",
+        "description": "输入登录网易智造账号的手机号，我们将发送一条短信验证码。",
+        "data": {
+          "phone": "手机号"
+        }
+      },
+      "sms_code": {
+        "title": "输入验证码",
+        "description": "输入发送到 {phone} 的短信验证码。",
+        "data": {
+          "sms_code": "短信验证码"
+        }
+      },
+      "email": {
+        "title": "邮箱登录",
+        "description": "输入网易智造账号的邮箱与密码。",
+        "data": {
+          "email": "邮箱",
+          "password": "密码"
+        }
+      },
+      "manual": {
+        "title": "手动填写 Cookie",
         "description": "输入从网易智造账号获取的登录凭据（对应 Cookie：ONE_TOKEN / ONE_TOKEN_ID）。",
         "data": {
           "token": "ONE_TOKEN 登录令牌",
@@ -14,6 +44,14 @@
       "already_configured": "该账号已配置。"
     },
     "error": {
+      "cannot_connect": "无法连接服务器，请稍后重试。",
+      "invalid_code": "验证码错误，请重新输入。",
+      "invalid_auth": "账号或密码错误。",
+      "too_frequent": "登录操作过于频繁，请稍后再试。",
+      "account_locked": "账号已被锁定。",
+      "user_not_found": "用户不存在。",
+      "server_error": "服务器错误，请稍后再试。",
+      "id_invalid": "会话无效，请重新开始。",
       "unknown": "发生未知错误。"
     }
   }

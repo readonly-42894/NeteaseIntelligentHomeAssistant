@@ -16,4 +16,11 @@ CONF_TOKEN: Final = "token"  # Cookie: ONE_TOKEN
 CONF_TOKEN_ID: Final = "token_id"  # Cookie: ONE_TOKEN_ID
 CONF_UA_INFO: Final = "ua_info"  # Cookie: UA-INFO
 
+# 登录表单字段（登录流程，见 config_flow.py）
+CONF_LOGIN_TYPE: Final = "login_type"
+CONF_PHONE: Final = "phone"
+CONF_SMS_CODE: Final = "sms_code"
+CONF_EMAIL: Final = "email"
+CONF_PASSWORD: Final = "password"
+
 DEFAULT_NAME: Final = NAME
