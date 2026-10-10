@@ -41,3 +41,7 @@ _load_module("models")
 
 # ``api`` 依赖 ``aiohttp``（见 requirements_test.txt）与 ``.const`` / ``.models``。
 _load_module("api")
+
+# 地图解析仅依赖标准库；渲染依赖 ``PIL``（见 requirements_test.txt）与 ``.map_parser``。
+_load_module("map_parser")
+_load_module("map_render")
