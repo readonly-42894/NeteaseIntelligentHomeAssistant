@@ -60,6 +60,9 @@
       "battery": { "name": "电量" },
       "today_clean_size": { "name": "今日清扫面积" },
       "today_clean_time": { "name": "今日清扫时长" }
+    },
+    "image": {
+      "map": { "name": "地图" }
     }
   }
 }

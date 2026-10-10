@@ -26,7 +26,7 @@ from .coordinator import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["vacuum", "sensor"]
+PLATFORMS: list[str] = ["vacuum", "sensor", "image"]
 
 
 def _register_sweeper_devices(

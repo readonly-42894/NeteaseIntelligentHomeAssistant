@@ -15,6 +15,9 @@
 - ``POST /ai-app/sweeper/rv02/setWorkMode`` —— 清扫模式/动作控制；
 - ``POST /ai-app/sweeper/rv02/setPreference`` —— 清扫偏好设置；
 - ``POST /ai-app/sweeper/rv02/deviceCtrl`` —— 设备控制指令。
+
+此外，``mapUrl`` 指向 NOS 对象存储上的二进制地图包，由
+``download_map_package()`` 直接下载（公开可读，无需认证 Cookie）。
 """
 
 from __future__ import annotations
@@ -295,3 +298,21 @@ class NeteaseIntelligentApiClient:
             PATH_SWEEPER_DEVICE_CTRL,
             data={"equipId": equip_id, "ctrltype": ctrltype, "value": value},
         )
+
+    async def download_map_package(self, url: str) -> bytes:
+        """下载扫地机二进制地图包（``SweeperDeviceData.mapUrl``）。
+
+        地图包存放于 NOS 对象存储（``nit-app.nos-jd.163yun.com``），为公开可读
+        资源：不携带认证 Cookie 也能下载，因此这里只用共享 ``ClientSession``
+        发起普通 GET（仍带客户端 UA 以保持请求特征一致）。
+        """
+        headers = {"User-Agent": self._user_agent}
+        try:
+            async with self._session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    raise ApiError(resp.status, f"HTTP {resp.status}")
+                return await resp.read()
+        except ApiError:
+            raise
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise ApiError(-1, str(err)) from err

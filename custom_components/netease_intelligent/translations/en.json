@@ -60,6 +60,9 @@
       "battery": { "name": "Battery" },
       "today_clean_size": { "name": "Today cleaned area" },
       "today_clean_time": { "name": "Today cleaning duration" }
+    },
+    "image": {
+      "map": { "name": "Map" }
     }
   }
 }
