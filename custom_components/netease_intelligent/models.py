@@ -114,6 +114,11 @@ class Equip(_Model):
         """是否为扫地机器人（``product_id`` 属于 RV02/RV03）。"""
         return self.product_id in SWEEPER_PRODUCT_IDS
 
+    @property
+    def unique_identifier(self) -> str:
+        """设备唯一标识：优先序列号 ``sn``，回退 ``id``（equipId）；均缺失为空串。"""
+        return self.sn or self.id
+
 
 @dataclass
 class FamilyEquip(_Model):

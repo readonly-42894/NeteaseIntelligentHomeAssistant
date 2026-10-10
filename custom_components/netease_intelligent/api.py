@@ -11,7 +11,10 @@
 - ``GET /ai-app/family/query`` —— 查询单个家庭；
 - ``GET /ai-app/family/env/info/homepage`` —— 家庭环境信息；
 - ``GET /ai-app/equip/list`` —— 账号下设备列表；
-- ``GET /ai-app/sweeper/rv02/getDeviceData`` —— 扫地机实时数据。
+- ``GET /ai-app/sweeper/rv02/getDeviceData`` —— 扫地机实时数据；
+- ``POST /ai-app/sweeper/rv02/setWorkMode`` —— 清扫模式/动作控制；
+- ``POST /ai-app/sweeper/rv02/setPreference`` —— 清扫偏好设置；
+- ``POST /ai-app/sweeper/rv02/deviceCtrl`` —— 设备控制指令。
 """
 
 from __future__ import annotations
@@ -135,6 +138,9 @@ PATH_EQUIP_LIST: str = "/ai-app/equip/list"
 
 # 扫地机模块端点（见 docs/openapi.yaml 的 sweeper tag）。
 PATH_SWEEPER_DEVICE_DATA: str = "/ai-app/sweeper/rv02/getDeviceData"
+PATH_SWEEPER_SET_WORK_MODE: str = "/ai-app/sweeper/rv02/setWorkMode"
+PATH_SWEEPER_SET_PREFERENCE: str = "/ai-app/sweeper/rv02/setPreference"
+PATH_SWEEPER_DEVICE_CTRL: str = "/ai-app/sweeper/rv02/deviceCtrl"
 
 
 class ApiError(Exception):
@@ -248,3 +254,44 @@ class NeteaseIntelligentApiClient:
             "GET", PATH_SWEEPER_DEVICE_DATA, params={"equipId": equip_id}
         )
         return SweeperDeviceData.from_dict(result)
+
+    async def set_work_mode(
+        self, equip_id: str, ctrltype: int, value: int
+    ) -> Any:
+        """``POST /ai-app/sweeper/rv02/setWorkMode``：切换清扫模式/动作。
+
+        ``ctrltype`` 为清扫模式（``ModeControlTypeEnum``），``value`` 为动作
+        （``ModeControlValueEnum``，如开始/暂停/停止）。
+        """
+        return await self._request(
+            "POST",
+            PATH_SWEEPER_SET_WORK_MODE,
+            data={"equipId": equip_id, "ctrltype": ctrltype, "value": value},
+        )
+
+    async def set_preference(
+        self, equip_id: str, ctrltype: int, value: int
+    ) -> Any:
+        """``POST /ai-app/sweeper/rv02/setPreference``：设置清扫偏好。
+
+        ``ctrltype`` 为偏好类型（``PreferenceTypeEnum``，如吸力/水量），
+        ``value`` 为取值（``PreferenceValueEnum``）。
+        """
+        return await self._request(
+            "POST",
+            PATH_SWEEPER_SET_PREFERENCE,
+            data={"equipId": equip_id, "ctrltype": ctrltype, "value": value},
+        )
+
+    async def device_ctrl(
+        self, equip_id: str, ctrltype: int, value: int
+    ) -> Any:
+        """``POST /ai-app/sweeper/rv02/deviceCtrl``：设备控制指令。
+
+        ``ctrltype`` 为控制类型（``DeviceControlTypeEnum``，如寻找设备）。
+        """
+        return await self._request(
+            "POST",
+            PATH_SWEEPER_DEVICE_CTRL,
+            data={"equipId": equip_id, "ctrltype": ctrltype, "value": value},
+        )

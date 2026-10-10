@@ -35,7 +35,7 @@
 - [x] 最小可加载集成（Config Flow 手动录入 Cookie 凭据）
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
 - [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
-- [x] 扫地机器人设备登记（识别 `productId` RV02/RV03，登记进 HA 设备注册表；实体待实现）
+- [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor`
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
@@ -46,8 +46,10 @@
 | `config_flow.py` / `urs.py` | 登录配置流与网易 URS 登录 SDK 协议实现 |
 | `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），实现家庭域与扫地机端点 |
 | `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO）与扫地机数据 DTO（`SweeperDeviceData`） |
-| `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data` |
-| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，并登记扫地机器人设备 |
+| `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data`；另含 `NeteaseIntelligentSweeperCoordinator` 按 `equipId` 拉取单台扫地机实时数据 |
+| `vacuum.py` | 扫地机器人 `vacuum` 实体（`StateVacuumEntity` + `VacuumActivity`：清扫/暂停/回充/吸力/寻找设备） |
+| `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
+| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor 实体 |
 
 ## API 逆向
 
@@ -62,8 +64,8 @@ pip install -r requirements_test.txt
 pytest
 ```
 
-`tests/` 覆盖家庭域数据模型（`models.py`）的反序列化与容错。测试环境通过 `tests/conftest.py`
-用合成包名加载 `const` / `models` 这两个纯 Python 模块，避免引入 `homeassistant` 依赖。
+`tests/` 覆盖家庭域数据模型（`models.py`）的反序列化与容错、API 客户端（`api.py`）的认证/UA 生成，以及扫地机器人状态映射（`sweeper_activity`）。测试环境通过 `tests/conftest.py`
+用合成包名加载 `const` / `models` / `api` 这些纯 Python 模块，避免引入 `homeassistant` 依赖。
 
 ## 许可
 

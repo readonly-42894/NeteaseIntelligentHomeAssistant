@@ -54,5 +54,12 @@
       "id_invalid": "会话无效，请重新开始。",
       "unknown": "发生未知错误。"
     }
+  },
+  "entity": {
+    "sensor": {
+      "battery": { "name": "电量" },
+      "today_clean_size": { "name": "今日清扫面积" },
+      "today_clean_time": { "name": "今日清扫时长" }
+    }
   }
 }

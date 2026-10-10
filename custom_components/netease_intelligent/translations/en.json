@@ -54,5 +54,12 @@
       "id_invalid": "Session expired, please start over.",
       "unknown": "An unknown error occurred."
     }
+  },
+  "entity": {
+    "sensor": {
+      "battery": { "name": "Battery" },
+      "today_clean_size": { "name": "Today cleaned area" },
+      "today_clean_time": { "name": "Today cleaning duration" }
+    }
   }
 }
