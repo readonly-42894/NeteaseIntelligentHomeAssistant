@@ -1,0 +1,8 @@
+# OpenCode 会话数据（不提交）
+/.opencode
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+*~
