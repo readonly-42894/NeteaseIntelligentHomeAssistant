@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import glob
 import io
 import os
 
@@ -61,6 +62,8 @@ _COLOR_TEXT_STROKE: tuple[int, int, int] = (0xFF, 0xFF, 0xFF)
 
 #: 优先使用的 CJK 字体路径（跨平台常见位置），均不存在时回退 Pillow 默认字体。
 _FONT_CANDIDATES: tuple[str, ...] = (
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
@@ -73,20 +76,44 @@ _FONT_CANDIDATES: tuple[str, ...] = (
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 )
 
+#: 兜底：在上述固定路径之外，按通配符搜索常见 CJK 字体（不同发行版布局不一）。
+_FONT_GLOBS: tuple[str, ...] = (
+    "/usr/share/fonts/noto-cjk/*CJK*Regular*.ttc",
+    "/usr/share/fonts/**/NotoSansCJKsc-Regular.*",
+    "/usr/share/fonts/**/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/**/wqy*.ttc",
+)
+
 #: 全背景时回退的居中窗口宽度（米），对应 App 的 MAP_DEFAULE_WIDTH。
 _FALLBACK_WINDOW_METERS: float = 3.0
 
 
+def _font_paths() -> list[str]:
+    """候选字体路径：固定路径 + 通配符搜索（去重、保序）。"""
+    paths: list[str] = []
+    for path in _FONT_CANDIDATES:
+        if path not in paths:
+            paths.append(path)
+    for pattern in _FONT_GLOBS:
+        for path in sorted(glob.glob(pattern, recursive=True)):
+            if path not in paths:
+                paths.append(path)
+    return paths
+
+
 def _load_font(size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
     """加载一个尽量支持中文的字体；失败时回退 Pillow 默认字体。"""
-    for path in _FONT_CANDIDATES:
+    for path in _font_paths():
         if not os.path.exists(path):
             continue
         try:
             return ImageFont.truetype(path, size)
         except OSError:
             continue
-    return ImageFont.load_default()
+    try:
+        return ImageFont.load_default(size)
+    except TypeError:  # 旧版 Pillow 的 load_default 不接受 size
+        return ImageFont.load_default()
 
 
 def _cell_color(value: int, grid_x: int, grid_y: int) -> tuple[int, int, int] | None:
