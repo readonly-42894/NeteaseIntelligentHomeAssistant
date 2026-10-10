@@ -8,7 +8,7 @@
 |------|------|
 | `docs/openapi.yaml` | OpenAPI 3.0.3 端点/schema 规范（99 个 path / 128 个 schema） |
 | `docs/API工作原理.md` | API 工作机制说明（架构/认证/响应结构/模块组织/登录流程） |
-| `apk/` | 原始安装包（Git LFS 跟踪） |
+| `source/` | 原始安装包（Git LFS 跟踪） |
 | `scripts/` | 生成器 `gen_openapi.py` 与辅助脚本 `extract_fields.sh` |
 
 ## 快速开始
