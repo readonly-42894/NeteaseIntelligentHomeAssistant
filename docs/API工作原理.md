@@ -39,6 +39,30 @@ H5 对应域名：`m.3c.163.com` / `t2m.3c.163.com` / `tm.3c.163.com`。
 ## 4. 认证机制（Cookie，非 Authorization 头）
 
 - 接口层**不携带 `Authorization` 头**，全局只注入 `User-Agent`。
+- **User-Agent** 由 `kernel/network/HeaderManager.getUserAgent()` 生成，经 OkHttp 拦截器 `CommonHeaderInterceptor` 全局注入。格式为：
+
+  ```
+  <http.agent> <appName>/<productName>/<version>/<buildType>/<source>[/<keyWord>]
+  ```
+
+  各段取值：
+
+  | 段 | 取值 | 来源 |
+  |----|------|------|
+  | `<http.agent>` | Android 平台默认 UA（如 `Dalvik/2.1.0 (Linux; U; Android 13; Pixel 5 Build/TQ3A.230805.001)`） | `System.getProperty("http.agent")` |
+  | `<appName>` | `Intelligent` | `MiscUtils.APP_NAME` |
+  | `<productName>` | `ntes3c` | `MiscUtils.PRODUCT_NAME` |
+  | `<version>` | `5.3.5` | `versionName` 取 `-` 前缀段（`MiscUtils`） |
+  | `<buildType>` | `release` | `MiscUtils.getBuildType()`（versionName 无 `-d/-a/-b` 后缀时为 `release`） |
+  | `<source>` | `Release` | `assets/source` 首段（`BaseApplication.aSource[0]`） |
+  | `<keyWord>` | 无（省略） | `assets/source` 的 `\|` 第二段（`BaseApplication.aSource[1]`） |
+
+  线上 release 包（`com.netease.intelligent` 5.3.5）完整 UA 形如：
+
+  ```
+  Dalvik/2.1.0 (Linux; U; Android 13; Pixel 5 Build/TQ3A.230805.001) Intelligent/ntes3c/5.3.5/release/Release
+  ```
+
 - 身份凭据通过 **Cookie** 传递，关键 Cookie（域均为 `3c.163.com`）：
 
 | Cookie | 常量（`SharedPrefsManager`） | 含义 |
@@ -167,7 +191,7 @@ URS 请求均为 `POST` + `application/x-www-form-urlencoded`。业务参数（`
 
 ```
 GET https://3c.163.com/ai-app/user/list
-User-Agent: <App 的 UA>
+User-Agent: Dalvik/2.1.0 (Linux; U; Android 13; Pixel 5 Build/TQ3A.230805.001) Intelligent/ntes3c/5.3.5/release/Release
 Cookie: ONE_TOKEN=<token>; ONE_TOKEN_ID=<id>; UA-INFO=<info>
 ```
 

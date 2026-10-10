@@ -25,9 +25,45 @@ from .models import Equip, Family, FamilyEnv, FamilyInfo
 
 _LOGGER = logging.getLogger(__name__)
 
-# 全局注入的 User-Agent（docs/API工作原理.md 第 4 节）。App 的真实 UA 未在
-# 反编译资料中记录，此处使用占位值，可经构造参数覆盖。
-USER_AGENT: str = "NeteaseIntelligent/5.3.5"
+# 客户端 User-Agent，复刻 kernel/network/HeaderManager.getUserAgent()
+# （docs/API工作原理.md 第 4 节），格式为：
+#
+#   <http.agent> <appName>/<productName>/<version>/<buildType>/<source>[/<keyWord>]
+#
+# 其中 <http.agent> 为 Android 平台默认 UA（System.getProperty("http.agent")），
+# 其余各段取自 App 内常量与 assets/source 资源。
+ANDROID_HTTP_AGENT: str = (
+    "Dalvik/2.1.0 (Linux; U; Android 13; Pixel 5 Build/TQ3A.230805.001)"
+)  # 平台默认 UA；HA 非 Android，按集成统一的设备模拟（Pixel 5 / Android 13）给出等价前缀
+APP_NAME: str = "Intelligent"  # MiscUtils.APP_NAME
+PRODUCT_NAME: str = "ntes3c"  # MiscUtils.PRODUCT_NAME
+APP_VERSION: str = "5.3.5"  # versionName（取 "-" 前的部分）
+BUILD_TYPE: str = "release"  # MiscUtils.getBuildType()
+SOURCE: str = "Release"  # assets/source 首段（BaseApplication.aSource[0]）
+KEY_WORD: str = ""  # assets/source 的 "|" 第二段（BaseApplication.aSource[1]，此处为空）
+
+
+def build_user_agent(
+    *,
+    http_agent: str = ANDROID_HTTP_AGENT,
+    app_name: str = APP_NAME,
+    product_name: str = PRODUCT_NAME,
+    version: str = APP_VERSION,
+    build_type: str = BUILD_TYPE,
+    source: str = SOURCE,
+    key_word: str = KEY_WORD,
+) -> str:
+    """按 ``HeaderManager.getUserAgent()`` 的规则拼装客户端 UA。"""
+    ua = (
+        f"{http_agent} {app_name}/{product_name}/{version}"
+        f"/{build_type}/{source}"
+    )
+    if key_word:
+        ua += f"/{key_word}"
+    return ua
+
+
+USER_AGENT: str = build_user_agent()
 
 # 端点在 kernel/config/Action.java（见 docs/openapi.yaml 的 kernel tag）。
 PATH_FAMILY_INFO: str = "/ai-app/family/info"
