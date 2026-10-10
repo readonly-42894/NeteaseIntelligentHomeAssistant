@@ -39,3 +39,7 @@
 - 重新生成 OpenAPI 规范：`python3 scripts/gen_openapi.py`
 - 拉取 APK 实际内容：`git lfs pull`
 - 端点与机制详见 [`docs/openapi.yaml`](docs/openapi.yaml) 与 [`docs/API工作原理.md`](docs/API工作原理.md)。
+
+## 许可
+
+本项目代码以 [MIT](LICENSE) 许可发布。网易智造 App 及其商标归网易所有，本项目与网易无关联。
