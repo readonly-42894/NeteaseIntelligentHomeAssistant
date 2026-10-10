@@ -38,3 +38,6 @@ def _load_module(name: str) -> None:
 # 依赖顺序：models 相对导入 const。
 _load_module("const")
 _load_module("models")
+
+# ``api`` 依赖 ``aiohttp``（见 requirements_test.txt）与 ``.const`` / ``.models``。
+_load_module("api")

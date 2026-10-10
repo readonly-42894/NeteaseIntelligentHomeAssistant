@@ -16,8 +16,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 
@@ -66,6 +68,65 @@ def build_user_agent(
 
 USER_AGENT: str = build_user_agent()
 
+# UA-INFO cookie 的设备模拟信息，复刻 CookieManager.generateUAHeader() 所用的
+# Android 设备字段（与 ANDROID_HTTP_AGENT 中的 Pixel 5 / Android 13 保持一致）。
+APP_BUILD: str = "4353147"  # host/BuildConfig.VERSION_CODE（对应 versionName 5.3.5）
+OS_VERSION: str = "13"  # Build.VERSION.RELEASE
+DEVICE_BRAND: str = "Google"  # Build.MANUFACTURER
+DEVICE_MODEL: str = "Pixel 5"  # Build.MODEL
+DEVICE_DENSITY: str = "2.75"  # UIUtils.getDensity()（DisplayMetrics.density）
+SCREEN_WIDTH: str = "1080"  # UIUtils.getScreenWidth()
+SCREEN_HEIGHT: str = "2340"  # UIUtils.getScreenHeight()
+
+
+def build_ua_info(
+    *,
+    product_name: str = PRODUCT_NAME,
+    source: str = SOURCE,
+    key_word: str = KEY_WORD,
+    version: str = APP_VERSION,
+    app_build: str = APP_BUILD,
+    build_type: str = BUILD_TYPE,
+    os_version: str = OS_VERSION,
+    brand: str = DEVICE_BRAND,
+    model: str = DEVICE_MODEL,
+    density: str = DEVICE_DENSITY,
+    width: str = SCREEN_WIDTH,
+    height: str = SCREEN_HEIGHT,
+) -> str:
+    """按 ``CookieManager.generateUAHeader()`` 生成 ``UA-INFO`` cookie 值。
+
+    App 会对**每个**业务请求都携带 UA-INFO（``Auth.getCookies()``），因此该
+    cookie 是认证的一部分，缺失会被服务端以业务错误拒绝。其内容为一段
+    JSON 使用 Java ``URLEncoder.encode`` 编码后的字符串：
+
+        {"PRODUCT":"ntes3c","SOURCE":"Release","KW":"","APP-VER":"5.3.5",
+         "APP-BUILD":"4353147","BUILD-TYPE":"release","TERMINAL":"android",
+         "OS-VER":"13","BRAND":"Google","MODEL":"Pixel 5","DENSITY":"2.75",
+         "DEVICE-ID":"","INFO-SIGN":"","WIDTH":"1080","HEIGHT":"2340"}
+    """
+    payload = {
+        "PRODUCT": product_name,
+        "SOURCE": source,
+        "KW": key_word,
+        "APP-VER": version,
+        "APP-BUILD": app_build,
+        "BUILD-TYPE": build_type,
+        "TERMINAL": "android",
+        "OS-VER": os_version,
+        "BRAND": brand,
+        "MODEL": model,
+        "DENSITY": density,
+        "DEVICE-ID": "",
+        "INFO-SIGN": "",
+        "WIDTH": width,
+        "HEIGHT": height,
+    }
+    # Java 的 URLEncoder.encode 仅保留 A-Za-z0-9 与 ".-*_"，空格编成 "+"
+    # （如 MODEL 值 "Pixel 5"）。quote() 保留集合一致，但空格编成 %20，故再替换。
+    encoded = quote(json.dumps(payload, separators=(",", ":")), safe=".-*_")
+    return encoded.replace("%20", "+")
+
 # 端点在 kernel/config/Action.java（见 docs/openapi/kernel.yaml 的 kernel tag）。
 PATH_FAMILY_INFO: str = "/ai-app/family/info"
 PATH_FAMILY_QUERY: str = "/ai-app/family/query"
@@ -104,17 +165,23 @@ class NeteaseIntelligentApiClient:
         self._session = session
         self._token = token
         self._token_id = token_id
-        self._ua_info = ua_info
+        # UA-INFO 是认证 Cookie 的一部分（App 每个请求都会携带），缺失时按
+        # CookieManager.generateUAHeader() 生成默认值，保证始终发送。
+        self._ua_info = ua_info or build_ua_info()
         self._base_url = base_url
         self._user_agent = user_agent
 
     @property
     def _cookie(self) -> str:
-        """组装认证 Cookie（见 docs/API工作原理.md 第 4 节）。"""
-        cookie = f"ONE_TOKEN={self._token}; ONE_TOKEN_ID={self._token_id}"
-        if self._ua_info:
-            cookie += f"; UA-INFO={self._ua_info}"
-        return cookie
+        """组装认证 Cookie（见 docs/API工作原理.md 第 4 节）。
+
+        App 的 ``Auth.getCookies()`` 会同时带上 ``ONE_TOKEN``、``ONE_TOKEN_ID``
+        与 ``UA-INFO``，三者缺一不可。
+        """
+        return (
+            f"ONE_TOKEN={self._token}; ONE_TOKEN_ID={self._token_id}"
+            f"; UA-INFO={self._ua_info}"
+        )
 
     async def _request(
         self,

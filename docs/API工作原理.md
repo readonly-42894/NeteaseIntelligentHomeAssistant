@@ -69,7 +69,14 @@ H5 对应域名：`m.3c.163.com` / `t2m.3c.163.com` / `tm.3c.163.com`。
 |--------|------------------------------|------|
 | `ONE_TOKEN` | `LOGIN_TOKEN` | 登录令牌 |
 | `ONE_TOKEN_ID` | `LOGIN_TOKEN_ID` | 令牌 ID |
-| `UA-INFO` | — | 设备/环境信息 |
+| `UA-INFO` | — | 设备/环境信息；**每个业务请求都必须携带** |
+
+- `UA-INFO` 由 `CookieManager.getUaInfoCookie()` 生成：`generateUAHeader()` 先构造一段
+  JSON（`PRODUCT`/`SOURCE`/`KW`/`APP-VER`/`APP-BUILD`/`BUILD-TYPE`/`TERMINAL`/`OS-VER`/
+  `BRAND`/`MODEL`/`DENSITY`/`DEVICE-ID`/`INFO-SIGN`，再追加 `WIDTH`/`HEIGHT`），
+  最后用 Java `URLEncoder.encode` 编码。`Auth.getCookies()` 对**每个**业务请求都会
+  同时写入 `ONE_TOKEN`、`ONE_TOKEN_ID`、`UA-INFO`，三者缺一不可；集成按同一规则生成
+  默认 `UA-INFO`（见 `api.py` 的 `build_ua_info()`）。
 
 - 登录走**网易 URS SDK**（不在 `/ai-app` 命名空间下），详见第 7 节。
 
