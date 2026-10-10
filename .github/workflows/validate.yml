@@ -34,3 +34,6 @@ jobs:
         uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
         with:
           category: integration
+          # GitHub 为只读镜像账号，无法启用 Issues；该项对自定义仓库可忽略。
+          # https://www.hacs.xyz/docs/publish/action/#ignorable-checks
+          ignore: issues
