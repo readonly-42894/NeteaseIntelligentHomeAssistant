@@ -1,13 +1,13 @@
 {
   "domain": "netease_intelligent",
   "name": "网易智造",
-  "codeowners": ["@o0kam1"],
+  "codeowners": ["@readonly-42894"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://git.o0kam1.dev/HumanlessCode/NeteaseIntelligentHomeAssistant",
+  "documentation": "https://github.com/readonly-42894/NeteaseIntelligentHomeAssistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://git.o0kam1.dev/HumanlessCode/NeteaseIntelligentHomeAssistant/issues",
+  "issue_tracker": "https://github.com/readonly-42894/NeteaseIntelligentHomeAssistant/issues",
   "requirements": [],
   "version": "0.1.0"
 }

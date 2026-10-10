@@ -9,8 +9,9 @@
 3. 重启 Home Assistant，然后在 **设置 → 设备与服务 → 添加集成** 中搜索「网易智造」。
 
 > [!IMPORTANT]
-> HACS 仅支持**公开的 GitHub 仓库**。本仓库当前托管于 Gitea（`git.o0kam1.dev`）。
-> 如需通过 HACS 安装，请将仓库镜像到 GitHub；集成本身可手动复制到 HA 配置目录的 `custom_components/` 下使用。
+> HACS 仅支持**公开的 GitHub 仓库**。本仓库的 HACS 安装源为 GitHub 镜像：
+> <https://github.com/readonly-42894/NeteaseIntelligentHomeAssistant>
+> （开发主仓库托管于 Gitea `git.o0kam1.dev`，GitHub 仅为 HACS 分发镜像。）
 
 ## 目录结构
 
