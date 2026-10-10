@@ -70,8 +70,7 @@
     "map_theme": {
       "options": {
         "light": "浅色",
-        "dark": "深色",
-        "auto": "跟随界面"
+        "dark": "深色"
       }
     }
   },

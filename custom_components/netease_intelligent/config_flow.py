@@ -218,7 +218,7 @@ class NeteaseIntelligentOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """选择地图配色（浅色/深色/跟随界面）。"""
+        """选择地图配色（浅色/深色）。"""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
