@@ -92,6 +92,18 @@ class UrsError(Exception):
         super().__init__(f"URS error {code}: {message}")
 
 
+def _result_code(obj: dict[str, Any]) -> int:
+    """读取响应 JSON 的 result 字段并转为 int。
+
+    服务端返回的是字符串 ``"201"``（Java 侧 Gson 会自动强转为 int），
+    而 Python 的 json.loads 保留字符串，需手动转换。
+    """
+    try:
+        return int(obj.get("result"))
+    except (TypeError, ValueError):
+        return -1
+
+
 # ---------------------------------------------------------------------------
 # 密码学（复刻 com/netease/loginapi/util/{a,i,j}.java）
 # ---------------------------------------------------------------------------
@@ -258,7 +270,7 @@ class UrsClient:
             {"product": PRODUCT, "pinfo": pinfo, "params": encrypted},
         )
         obj = json.loads(text)
-        code = obj.get("result")
+        code = _result_code(obj)
         if code != 201:
             raise UrsError(code, obj.get("msg", ""))
 
@@ -280,7 +292,7 @@ class UrsClient:
             {"mobile": phone, "referer": ""},
         )
         obj = json.loads(text)
-        code = obj.get("result")
+        code = _result_code(obj)
         if code != 201:
             raise UrsError(code, obj.get("msg", ""))
 
@@ -296,7 +308,7 @@ class UrsClient:
             },
         )
         obj = json.loads(text)
-        code_result = obj.get("result")
+        code_result = _result_code(obj)
         if code_result != 201:
             raise UrsError(code_result, obj.get("msg", ""))
 
