@@ -438,8 +438,8 @@ spec = {
     "components": {"schemas": S},
 }
 
-# 输出到仓库根目录（本脚本位于 scripts/ 下，向上两级即仓库根）
-out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "openapi.yaml")
+# 输出到 docs/ 目录（本脚本位于 scripts/ 下，向上两级即仓库根）
+out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "openapi.yaml")
 with open(out, "w", encoding="utf-8") as f:
     yaml.dump(spec, f, allow_unicode=True, sort_keys=False, default_flow_style=False, width=1000)
 print("written:", out)

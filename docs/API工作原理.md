@@ -130,4 +130,4 @@ Cookie: ONE_TOKEN=<token>; ONE_TOKEN_ID=<id>; UA-INFO=<info>
 jadx --no-res -d decompiled 网易智造_5.3.5.apk
 ```
 
-- `openapi.yaml` 由 [`scripts/gen_openapi.py`](./scripts/gen_openapi.py) 生成，改端点优先改脚本再重新生成。
+- `openapi.yaml` 由 [`scripts/gen_openapi.py`](../scripts/gen_openapi.py) 生成，改端点优先改脚本再重新生成。
