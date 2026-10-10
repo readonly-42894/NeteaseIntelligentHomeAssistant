@@ -7,8 +7,8 @@
 网易智造 App（主包 `com.netease.intelligent`，versionName 5.3.5）的逆向与 API 提取仓库。
 
 - 原始素材：`source/网易智造_5.3.5.apk` —— 逆向源文件，已通过 **Git LFS** 跟踪（114MB，`git lfs pull` 拉取实际内容；`git push` 前需确认远端支持 LFS）。
-- 交付文档：`docs/openapi.yaml`（OpenAPI 3.0.3，端点/schema）、`docs/API工作原理.md`（认证/响应结构/模块组织等机制说明）。
-- 生成器：`scripts/gen_openapi.py`（重新生成 `docs/openapi.yaml`）、`scripts/extract_fields.sh`（字段提取辅助）。
+- 交付文档：`docs/openapi/`（OpenAPI 3.0.3，按模块拆分的端点/schema，索引见 `docs/openapi/README.md`）、`docs/API工作原理.md`（认证/响应结构/模块组织等机制说明）。
+- 生成器：`scripts/gen_openapi.py`（重新生成 `docs/openapi/*.yaml`）、`scripts/extract_fields.sh`（字段提取辅助）。
 - 反编译源码**不纳入 git**（体积大、第三方库为可复现噪声）；需要时用 jadx 从 APK 重新反编译。
 
 ## 工作纪律
@@ -38,6 +38,6 @@ Co-Authored-By: <Agent应用名> v<版本>
 
 ## 文档维护约定
 
-- `docs/openapi.yaml` 是端点交付文档；新增/修正端点时，优先编辑 `scripts/gen_openapi.py` 再重新生成（`python3 scripts/gen_openapi.py`），或直接编辑 YAML。
+- `docs/openapi/*.yaml` 是端点交付文档（按模块拆分）；新增/修正端点时，优先编辑 `scripts/gen_openapi.py` 再重新生成（`python3 scripts/gen_openapi.py`），或直接编辑 YAML。
 - `docs/API工作原理.md` 说明认证、统一响应结构、模块组织、登录流程等机制。
 - API 层定义在各模块的 `Action.java`（`kernel`/`sweeper`/`firmware`/`host`/`hybrid`）；反编译源码不纳入 git。

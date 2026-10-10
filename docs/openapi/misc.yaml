@@ -1,0 +1,128 @@
+openapi: 3.0.3
+info:
+  title: 网易智造 App API
+  version: 5.3.5
+  description: 从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。登录相关端点（tag=login）走网易 URS SDK（https://sdk.reg.163.com），其响应结构与 ResponseWrapper 不同，见各端点说明。 本文件仅含 misc（其他（头像等））模块。
+servers:
+- url: https://3c.163.com
+  description: 线上/Release
+- url: https://t2.3c.163.com
+  description: Alpha/Beta
+- url: https://t.3c.163.com
+  description: Develop
+tags:
+- name: misc
+  description: 其他（头像等）
+paths:
+  /ai-app/account/uploadThumb:
+    post:
+      tags:
+      - misc
+      summary: 上传头像
+      operationId: updateAccountAvatar
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  description: 图片文件
+              required:
+              - file
+  /ai-app/account/headpic:
+    get:
+      tags:
+      - misc
+      summary: 头像图片
+      operationId: accountHeadpic
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      parameters:
+      - name: userProfileId
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 用户档案ID
+components:
+  schemas:
+    FlyAlertItem:
+      type: object
+      properties:
+        isCloseOuterWhenClick:
+          type: boolean
+        isCloseWhenCancel:
+          type: boolean
+        isCloseWhenSubmit:
+          type: boolean
+        isShowClose:
+          type: boolean
+        alertContent:
+          type: string
+        alertContentAlign:
+          type: integer
+        cancelTextColor:
+          type: integer
+        alertCode:
+          type: integer
+        okCountDown:
+          type: integer
+        okTextColor:
+          type: integer
+        permissions:
+          type: array
+          items:
+            type: string
+        statistics: {}
+        alertImageUrl:
+          type: string
+        alertTitle:
+          type: string
+        cancelStatisticsKey:
+          type: string
+        cancelText:
+          type: string
+        cancelUrl:
+          type: string
+        closeStatisticsKey:
+          type: string
+        okStatisticsKey:
+          type: string
+        okText:
+          type: string
+        okUrl:
+          type: string
+        pageUrl:
+          type: string
+        showStatisticsKey:
+          type: string
+        successUrl:
+          type: string
+    ResponseWrapper:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result: {}
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}

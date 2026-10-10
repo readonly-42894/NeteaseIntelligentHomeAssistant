@@ -1,6 +1,6 @@
 """网易智造家庭域数据模型。
 
-对应 App API ``ResponseWrapper.result`` 中的家庭相关 DTO（见 docs/openapi.yaml）：
+对应 App API ``ResponseWrapper.result`` 中的家庭相关 DTO（见 docs/openapi/kernel.yaml）：
 
 - ``FamilyInfo`` —— ``GET /ai-app/family/info`` 的返回，含 ``familyList`` 与排序/未读信息；
 - ``Family`` —— 单个家庭，含房间（``Room``）、成员（``Member``）与分享设备（``Equip``）；

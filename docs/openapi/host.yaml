@@ -1,0 +1,686 @@
+openapi: 3.0.3
+info:
+  title: 网易智造 App API
+  version: 5.3.5
+  description: 从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。登录相关端点（tag=login）走网易 URS SDK（https://sdk.reg.163.com），其响应结构与 ResponseWrapper 不同，见各端点说明。 本文件仅含 host（设备分享）模块。
+servers:
+- url: https://3c.163.com
+  description: 线上/Release
+- url: https://t2.3c.163.com
+  description: Alpha/Beta
+- url: https://t.3c.163.com
+  description: Develop
+tags:
+- name: host
+  description: 设备分享
+paths:
+  /ai-app/user/agreement/deal:
+    post:
+      tags:
+      - host
+      summary: 处理协议
+      operationId: dealAgreement
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                agreementId:
+                  type: integer
+                  description: 协议ID
+                privatePolicyId:
+                  type: integer
+                  description: 隐私政策ID
+              required:
+              - agreementId
+              - privatePolicyId
+  /ai-app/equip/share/request/unread:
+    get:
+      tags:
+      - host
+      summary: 未读消息数
+      operationId: unReadMsgNum
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_Integer'
+  /ai-app/equip/share/request/accept:
+    post:
+      tags:
+      - host
+      summary: 接受分享请求
+      operationId: acceptRequest
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_ShareEquipRequestModel'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _params:
+                  type: string
+                  description: 任意键值对
+  /ai-app/equip/share/request/add:
+    post:
+      tags:
+      - host
+      summary: 新增分享账号
+      operationId: addShareAccount
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _params:
+                  type: string
+                  description: 任意键值对
+  /down/appver.do:
+    get:
+      tags:
+      - host
+      summary: 版本更新
+      operationId: appver
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_UpdateCheckResponse_Host'
+      parameters:
+      - name: _query
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 任意查询参数 Map
+  /ai-app/equip/share/request/cancel:
+    post:
+      tags:
+      - host
+      summary: 取消分享
+      operationId: cancelShareEquip
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _params:
+                  type: string
+                  description: 任意键值对
+  /ai-app/equip/share/account:
+    get:
+      tags:
+      - host
+      summary: 已接受用户列表
+      operationId: equipAcceptedUserList
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_ListResponse_SharedUserAccountModel'
+      parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 设备ID
+  /ai-app/product/setupInfo/get:
+    get:
+      tags:
+      - host
+      summary: 产品详情
+      operationId: getProductDetail
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_ProductDetail'
+      parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 产品ID
+  /ai-app/user/global:
+    get:
+      tags:
+      - host
+      summary: 用户全局信息
+      operationId: getUserGlobal
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_UserGlobalInfo'
+  /ai-app/equip/share/owner/cancel:
+    post:
+      tags:
+      - host
+      summary: 主人取消分享
+      operationId: ownerCancelShareEquip
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _params:
+                  type: string
+                  description: 任意键值对
+  /ai-app/user/account/search:
+    get:
+      tags:
+      - host
+      summary: 搜索用户账号
+      operationId: queryUserAccount
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_UserAccount'
+      parameters:
+      - name: username
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 用户名
+  /ai-app/equip/quick/sendCommand:
+    post:
+      tags:
+      - host
+      summary: 快速下发命令
+      operationId: quickSendCommand
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                _params:
+                  type: string
+                  description: 任意键值对 Map<String,Object>
+  /ai-app/equip/share/account/recent:
+    get:
+      tags:
+      - host
+      summary: 最近添加用户
+      operationId: recentAddUserList
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_ListResponse_UserAccount'
+  /channel/app/addLoginInfo.do:
+    get:
+      tags:
+      - host
+      summary: 登录信息上报
+      operationId: sendStatic
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper'
+      parameters:
+      - name: cid
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 渠道ID
+  /ai-app/equip/share/list:
+    get:
+      tags:
+      - host
+      summary: 分享设备列表
+      operationId: shareEquipList
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_ShareEquipResponse'
+  /ai-app/equip/share/request:
+    get:
+      tags:
+      - host
+      summary: 分享请求
+      operationId: shareEquipRequest
+      responses:
+        '200':
+          description: 成功（code=0 表示成功，见 ResponseWrapper）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWrapper_ShareEquipRequestResponse'
+components:
+  schemas:
+    FlyAlertItem:
+      type: object
+      properties:
+        isCloseOuterWhenClick:
+          type: boolean
+        isCloseWhenCancel:
+          type: boolean
+        isCloseWhenSubmit:
+          type: boolean
+        isShowClose:
+          type: boolean
+        alertContent:
+          type: string
+        alertContentAlign:
+          type: integer
+        cancelTextColor:
+          type: integer
+        alertCode:
+          type: integer
+        okCountDown:
+          type: integer
+        okTextColor:
+          type: integer
+        permissions:
+          type: array
+          items:
+            type: string
+        statistics: {}
+        alertImageUrl:
+          type: string
+        alertTitle:
+          type: string
+        cancelStatisticsKey:
+          type: string
+        cancelText:
+          type: string
+        cancelUrl:
+          type: string
+        closeStatisticsKey:
+          type: string
+        okStatisticsKey:
+          type: string
+        okText:
+          type: string
+        okUrl:
+          type: string
+        pageUrl:
+          type: string
+        showStatisticsKey:
+          type: string
+        successUrl:
+          type: string
+    PageInfo:
+      type: object
+      properties:
+        pageCnt:
+          type: integer
+        pageIndex:
+          type: integer
+        pageSize:
+          type: integer
+        totalCnt:
+          type: integer
+    ProductDetail:
+      type: object
+      properties:
+        productDesc:
+          type: string
+        productImgUrl:
+          type: string
+        productName:
+          type: string
+        productOrderUrl:
+          type: string
+    ResponseWrapper:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result: {}
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_Integer:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          type: integer
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_ListResponse_SharedUserAccountModel:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          type: object
+          properties:
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/SharedUserAccountModel'
+            page:
+              $ref: '#/components/schemas/PageInfo'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_ListResponse_UserAccount:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          type: object
+          properties:
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserAccount'
+            page:
+              $ref: '#/components/schemas/PageInfo'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_ProductDetail:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/ProductDetail'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_ShareEquipRequestModel:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/ShareEquipRequestModel'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_ShareEquipRequestResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/ShareEquipRequestResponse'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_ShareEquipResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/ShareEquipResponse'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_UpdateCheckResponse_Host:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/UpdateCheckResponse_Host'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_UserAccount:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/UserAccount'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ResponseWrapper_UserGlobalInfo:
+      type: object
+      properties:
+        code:
+          type: integer
+        errorMsg:
+          type: string
+        result:
+          $ref: '#/components/schemas/UserGlobalInfo'
+        showType:
+          type: integer
+        alertInfo:
+          $ref: '#/components/schemas/FlyAlertItem'
+        rawResult: {}
+    ShareEquipModel:
+      type: object
+      properties:
+        productId:
+          type: integer
+        sharedNum:
+          type: integer
+        alias:
+          type: string
+        id:
+          type: string
+        imageUrl:
+          type: string
+        name:
+          type: string
+        sn:
+          type: string
+    ShareEquipRequestModel:
+      type: object
+      properties:
+        read:
+          type: boolean
+        productId:
+          type: integer
+        status:
+          type: integer
+        id:
+          type: integer
+          format: int64
+        alias:
+          type: string
+        equipId:
+          type: string
+        imageUrl:
+          type: string
+        name:
+          type: string
+        sn:
+          type: string
+        owner:
+          $ref: '#/components/schemas/UserAccount'
+        shared:
+          $ref: '#/components/schemas/UserAccount'
+    ShareEquipRequestResponse:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareEquipRequestModel'
+    ShareEquipResponse:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareEquipModel'
+        recommendUrl:
+          type: string
+    SharedUserAccountModel:
+      type: object
+      properties:
+        status:
+          type: integer
+        acceptTime:
+          type: integer
+          format: int64
+        shareRequestId:
+          type: integer
+          format: int64
+        shareTime:
+          type: integer
+          format: int64
+        shared:
+          $ref: '#/components/schemas/UserAccount'
+    UpdateCheckResponse_Host:
+      type: object
+      properties:
+        force:
+          type: boolean
+        length:
+          type: integer
+          format: int64
+        desc:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        version:
+          type: string
+    UserAccount:
+      type: object
+      properties:
+        deregistered:
+          type: boolean
+        pid:
+          type: integer
+        avatar:
+          type: string
+        nickname:
+          type: string
+        username:
+          type: string
+    UserGlobalInfo:
+      type: object
+      properties:
+        agreementInfo: {}
+        read:
+          type: boolean
+        agreementId:
+          type: integer
+        privatePolicyId:
+          type: integer
+        content:
+          type: string
+        title:
+          type: string

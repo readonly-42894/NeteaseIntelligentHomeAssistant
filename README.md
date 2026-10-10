@@ -22,7 +22,7 @@
 | `custom_components/netease_intelligent/brand/` | HACS brand 资源（`icon.png` / `icon@2x.png`，取自 App 图标） |
 | `hacs.json` | HACS 清单 |
 | `.github/workflows/validate.yml` | HACS Action + hassfest 校验工作流 |
-| `docs/openapi.yaml` | OpenAPI 3.0.3 端点/schema 规范 |
+| `docs/openapi/` | OpenAPI 3.0.3 端点/schema 规范（按模块拆分为 `kernel`/`sweeper`/`firmware`/`host`/`tuya`/`login`/`misc`，索引见 `docs/openapi/README.md`） |
 | `docs/API工作原理.md` | API 工作机制说明（架构/认证/响应结构/模块组织/登录流程） |
 | `source/` | 原始安装包（Git LFS 跟踪） |
 | `scripts/` | 生成器 `gen_openapi.py` 与辅助脚本 `extract_fields.sh` |
@@ -51,7 +51,7 @@
 
 - 重新生成 OpenAPI 规范：`python3 scripts/gen_openapi.py`
 - 拉取 APK 实际内容：`git lfs pull`
-- 端点与机制详见 [`docs/openapi.yaml`](docs/openapi.yaml) 与 [`docs/API工作原理.md`](docs/API工作原理.md)。
+- 端点与机制详见 [`docs/openapi/`](docs/openapi/) 与 [`docs/API工作原理.md`](docs/API工作原理.md)。
 
 ## 许可
 
