@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: 网易智造 App API
   version: 5.3.5
-  description: 从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。
+  description: 从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。登录相关端点（tag=login）走网易 URS SDK（https://sdk.reg.163.com），其响应结构与 ResponseWrapper 不同，见各端点说明。
 servers:
 - url: https://3c.163.com
   description: 线上/Release
@@ -21,8 +21,10 @@ tags:
   description: 设备分享
 - name: tuya
   description: 涂鸦 Hybrid
+- name: login
+  description: 网易 URS 登录 SDK（短信/密码/邮箱/OAuth）
 - name: misc
-  description: 其他（登录/头像）
+  description: 其他（头像等）
 paths:
   /ai-app/equip/checkUpdate:
     post:
@@ -819,8 +821,8 @@ paths:
   http://reg.163.com/outerLogin/oauth2/exchageMobLoginToken.do:
     get:
       tags:
-      - misc
-      summary: URS 换 token
+      - login
+      summary: URS 换 token（微信 OAuth）
       operationId: ursToken
       responses:
         '200':
@@ -842,6 +844,155 @@ paths:
         schema:
           type: string
         description: AES加密参数
+  https://sdk.reg.163.com/services/initSdk:
+    post:
+      tags:
+      - login
+      summary: URS SDK 初始化（密钥协商）
+      operationId: ursInitSdk
+      responses:
+        '200':
+          description: 成功（result 为字符串码，201 表示成功）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrsInitResponse'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                product:
+                  type: string
+                  description: 产品标识，固定 ai
+                pinfo:
+                  type: string
+                  description: RSA 加密的密钥协商信息（4随机字符+aesKey）
+                params:
+                  type: string
+                  description: AES 加密的公共参数（含 ctt/sign 等）
+              required:
+              - product
+              - pinfo
+              - params
+  https://sdk.reg.163.com/interfaces/yd/login1.do:
+    post:
+      tags:
+      - login
+      summary: 获取短信验证码
+      operationId: ursAcquireSmsCode
+      responses:
+        '200':
+          description: 成功（result 为字符串码，201 表示成功）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrsJsonResponse'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 会话 ID（=ONE_TOKEN_ID）
+                params:
+                  type: string
+                  description: AES 加密参数：mobile、referer
+              required:
+              - id
+              - params
+  https://sdk.reg.163.com/interfaces/yd/login2.do:
+    post:
+      tags:
+      - login
+      summary: 短信验证码登录
+      operationId: ursVerifySmsCode
+      responses:
+        '200':
+          description: 成功（result 为字符串码，201 表示成功）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrsJsonResponse'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 会话 ID
+                params:
+                  type: string
+                  description: AES 加密参数：smscode、mobile、loginException、needLeakInfo
+              required:
+              - id
+              - params
+  https://sdk.reg.163.com/services/safeUserLoginForMob:
+    post:
+      tags:
+      - login
+      summary: 邮箱密码登录
+      operationId: ursEmailLogin
+      responses:
+        '200':
+          description: 文本响应：首个数字行为业务码（201 成功），末行为 result=<AES密文>
+          content:
+            text/plain:
+              schema:
+                type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 会话 ID
+                params:
+                  type: string
+                  description: AES 加密参数：username、password(MD5)、isMd5=1、needmainaccount=1
+              required:
+              - id
+              - params
+  https://sdk.reg.163.com/interfaces/yd/pwdlogin.do:
+    post:
+      tags:
+      - login
+      summary: 手机号+密码登录
+      operationId: ursMobilePwdLogin
+      responses:
+        '200':
+          description: 成功（result 为字符串码，201 表示成功）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrsJsonResponse'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: 会话 ID
+                params:
+                  type: string
+                  description: AES 加密参数：password(MD5)、isMd5=1、mobile、loginException、needLeakInfo
+              required:
+              - id
+              - params
   /ai-app/user/add:
     post:
       tags:
@@ -2619,6 +2770,24 @@ components:
         result:
           type: string
         retDesc:
+          type: string
+    UrsInitResponse:
+      type: object
+      description: URS 初始化响应。result 为字符串码（201 成功）；msg 为 AES 密文（用临时密钥解密得 {id,key,sign}）；rk 为 RSA 密文（用客户端私钥解密得临时 AES 密钥）。
+      properties:
+        result:
+          type: string
+        msg:
+          type: string
+        rk:
+          type: string
+    UrsJsonResponse:
+      type: object
+      description: URS JSON 响应。result 为字符串码（201 成功）；msg 为 AES 密文（登录成功时为 token/ssn/ydAccount 等字段的 URL query）。
+      properties:
+        result:
+          type: string
+        msg:
           type: string
     UserInfo:
       type: object

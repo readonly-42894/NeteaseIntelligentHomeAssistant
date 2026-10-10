@@ -42,6 +42,20 @@ S["FlyAlertItem"] = schema({
 
 S["ServerNotice"] = schema({"id": STR, "title": STR, "url": STR})
 S["UrsTokenResponse"] = schema({"retCode": INT, "result": STR, "retDesc": STR})
+
+# 网易 URS 登录 SDK（响应结构与 ResponseWrapper 不同）
+S["UrsInitResponse"] = {
+    "type": "object",
+    "description": "URS 初始化响应。result 为字符串码（201 成功）；msg 为 AES 密文"
+                   "（用临时密钥解密得 {id,key,sign}）；rk 为 RSA 密文（用客户端私钥解密得临时 AES 密钥）。",
+    "properties": {"result": {"type": "string"}, "msg": {"type": "string"}, "rk": {"type": "string"}},
+}
+S["UrsJsonResponse"] = {
+    "type": "object",
+    "description": "URS JSON 响应。result 为字符串码（201 成功）；msg 为 AES 密文"
+                   "（登录成功时为 token/ssn/ydAccount 等字段的 URL query）。",
+    "properties": {"result": {"type": "string"}, "msg": {"type": "string"}},
+}
 S["UserInfo"] = schema({"sex": INT, "welcomeFlg": INT, "birthday": I64, "pid": I64,
     "accountDesc": STR, "accountType": STR, "nickname": STR, "thumbnails": STR, "uid": STR})
 S["WeixinTokenResponse"] = schema({"access_token": STR, "openid": STR, "refresh_token": STR})
@@ -207,6 +221,8 @@ def listresponse_schema(elem_prop):
 OBJ_R=("obj",); INT_R=("int",)
 def REF_R(n): return ("ref", n)
 def LIST_R(e): return ("list", e)
+# URS 登录 SDK（响应非 ResponseWrapper 包装）
+URS_INIT_R=("urs_init",); URS_JSON_R=("urs_json",); URS_TEXT_R=("urs_text",)
 
 # param: (name, type, required, desc)   type in {string,integer,int64,boolean}
 # body: None | ("form", [(name,type,req,desc)]) | ("json", schema_name_or_None)
@@ -216,7 +232,7 @@ def add(tag, method, path, opId, summary, params, body, result):
     EP.append(dict(tag=tag, method=method, path=path, opId=opId, summary=summary,
                    params=params, body=body, result=result))
 
-K="kernel"; SW="sweeper"; FW="firmware"; HO="host"; TU="tuya"; EX="misc"
+K="kernel"; SW="sweeper"; FW="firmware"; HO="host"; TU="tuya"; EX="misc"; LO="login"
 
 # ---- Kernel ----
 add(K,"post","/ai-app/equip/checkUpdate","checkUpdate","检查设备更新",[],("form",[("_params",STR,False,"任意键值对 Map<String,String>")]),OBJ_R)
@@ -254,7 +270,19 @@ add(K,"post","/ai-app/ota/sync","syncDevice","同步设备OTA",[],("form",[("pro
 add(K,"get","/ai-app/family/invite/unread","unreadInviteMsgCnt","未读邀请数",[],None,REF_R("InviteUnreadRsp"))
 add(K,"get","/ai-app/equip/share/request/unread","unreadShareMsgCnt","未读分享消息数",[],None,INT_R)
 add(K,"post","/ai-app/account/update","updateAccountInfo","更新账号信息",[],("form",[("nickname",STR,False,"昵称"),("sex","integer",False,"性别"),("birthday","int64",False,"生日")]),OBJ_R)
-add(EX,"get","http://reg.163.com/outerLogin/oauth2/exchageMobLoginToken.do","ursToken","URS 换 token",[("id",STR,True,"NEConfig id"),("params",STR,True,"AES加密参数")],None,REF_R("UrsTokenResponse"))
+add(LO,"get","http://reg.163.com/outerLogin/oauth2/exchageMobLoginToken.do","ursToken","URS 换 token（微信 OAuth）",[("id",STR,True,"NEConfig id"),("params",STR,True,"AES加密参数")],None,REF_R("UrsTokenResponse"))
+# ---- 网易 URS 登录 SDK（/services 与 /interfaces/yd/*，BASE=https://sdk.reg.163.com）----
+add(LO,"post","https://sdk.reg.163.com/services/initSdk","ursInitSdk","URS SDK 初始化（密钥协商）",[],("form",[
+    ("product",STR,True,"产品标识，固定 ai"),("pinfo",STR,True,"RSA 加密的密钥协商信息（4随机字符+aesKey）"),
+    ("params",STR,True,"AES 加密的公共参数（含 ctt/sign 等）")]),URS_INIT_R)
+add(LO,"post","https://sdk.reg.163.com/interfaces/yd/login1.do","ursAcquireSmsCode","获取短信验证码",[],("form",[
+    ("id",STR,True,"会话 ID（=ONE_TOKEN_ID）"),("params",STR,True,"AES 加密参数：mobile、referer")]),URS_JSON_R)
+add(LO,"post","https://sdk.reg.163.com/interfaces/yd/login2.do","ursVerifySmsCode","短信验证码登录",[],("form",[
+    ("id",STR,True,"会话 ID"),("params",STR,True,"AES 加密参数：smscode、mobile、loginException、needLeakInfo")]),URS_JSON_R)
+add(LO,"post","https://sdk.reg.163.com/services/safeUserLoginForMob","ursEmailLogin","邮箱密码登录",[],("form",[
+    ("id",STR,True,"会话 ID"),("params",STR,True,"AES 加密参数：username、password(MD5)、isMd5=1、needmainaccount=1")]),URS_TEXT_R)
+add(LO,"post","https://sdk.reg.163.com/interfaces/yd/pwdlogin.do","ursMobilePwdLogin","手机号+密码登录",[],("form",[
+    ("id",STR,True,"会话 ID"),("params",STR,True,"AES 加密参数：password(MD5)、isMd5=1、mobile、loginException、needLeakInfo")]),URS_JSON_R)
 add(K,"post","/ai-app/user/add","userAdd","新增用户",[],("form",[("_params",STR,False,"任意键值对")]),OBJ_R)
 add(K,"delete","/ai-app/account/deregister","userDeRegister","注销账号",[],None,OBJ_R)
 add(K,"post","/ai-app/user/delete","userDel","删除用户",[],("form",[("userProfileId",STR,True,"用户档案ID")]),OBJ_R)
@@ -345,7 +373,8 @@ TAGDESC = {
     "firmware": "固件 OTA",
     "host": "设备分享",
     "tuya": "涂鸦 Hybrid",
-    "misc": "其他（登录/头像）",
+    "login": "网易 URS 登录 SDK（短信/密码/邮箱/OAuth）",
+    "misc": "其他（头像等）",
 }
 
 paths = {}
@@ -387,6 +416,8 @@ for e in EP:
 
     # result -> response schema
     r = e["result"]
+    rctype = "application/json"
+    rdesc = "成功（code=0 表示成功，见 ResponseWrapper）"
     if r[0] == "obj":
         rschema = {"$ref": "#/components/schemas/ResponseWrapper"}
     elif r[0] == "int":
@@ -395,9 +426,19 @@ for e in EP:
         rschema = {"$ref": "#/components/schemas/ResponseWrapper_" + r[1]}
     elif r[0] == "list":
         rschema = {"$ref": "#/components/schemas/ResponseWrapper_ListResponse_" + r[1]}
+    elif r[0] == "urs_init":
+        rschema = {"$ref": "#/components/schemas/UrsInitResponse"}
+        rdesc = "成功（result 为字符串码，201 表示成功）"
+    elif r[0] == "urs_json":
+        rschema = {"$ref": "#/components/schemas/UrsJsonResponse"}
+        rdesc = "成功（result 为字符串码，201 表示成功）"
+    elif r[0] == "urs_text":
+        rschema = {"type": "string"}
+        rctype = "text/plain"
+        rdesc = "文本响应：首个数字行为业务码（201 成功），末行为 result=<AES密文>"
 
-    resp = {"200": {"description": "成功（code=0 表示成功，见 ResponseWrapper）",
-                    "content": {"application/json": {"schema": rschema}}}}
+    resp = {"200": {"description": rdesc,
+                    "content": {rctype: {"schema": rschema}}}}
     op = {"tags": [e["tag"]], "summary": e["summary"], "operationId": e["opId"],
           "responses": resp}
     if params: op["parameters"] = params
@@ -426,7 +467,9 @@ spec = {
         "version": "5.3.5",
         "description": "从 网易智造_5.3.5.apk 反编译提取（Retrofit + OkHttp + Gson）。"
                        "基础 URL 线上为 https://3c.163.com，认证基于 Cookie（ONE_TOKEN/ONE_TOKEN_ID/UA-INFO）。"
-                       "统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。",
+                       "统一响应结构 ResponseWrapper：code=0 成功，result 为业务数据。"
+                       "登录相关端点（tag=login）走网易 URS SDK（https://sdk.reg.163.com），"
+                       "其响应结构与 ResponseWrapper 不同，见各端点说明。",
     },
     "servers": [
         {"url": "https://3c.163.com", "description": "线上/Release"},

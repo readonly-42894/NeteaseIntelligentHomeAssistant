@@ -31,7 +31,8 @@
 
 - [x] HACS 合规骨架（`hacs.json` / `manifest.json` / brand 资源 / 校验工作流）
 - [x] 最小可加载集成（Config Flow 手动录入 Cookie 凭据）
-- [ ] 登录流程（短信 / 邮箱 / 微信，网易 URS SDK）
+- [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
+- [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
 ## API 逆向
