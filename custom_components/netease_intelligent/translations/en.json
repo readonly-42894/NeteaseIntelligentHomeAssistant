@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Netease Intelligent",
+        "description": "Enter the credentials obtained from your Netease Intelligent account (cookies: ONE_TOKEN / ONE_TOKEN_ID).",
+        "data": {
+          "token": "ONE_TOKEN login token",
+          "token_id": "ONE_TOKEN_ID token id"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    },
+    "error": {
+      "unknown": "An unknown error occurred."
+    }
+  }
+}

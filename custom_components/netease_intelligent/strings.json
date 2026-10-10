@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "网易智造",
+        "description": "输入从网易智造账号获取的登录凭据（对应 Cookie：ONE_TOKEN / ONE_TOKEN_ID）。",
+        "data": {
+          "token": "ONE_TOKEN 登录令牌",
+          "token_id": "ONE_TOKEN_ID 令牌 ID"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "该账号已配置。"
+    },
+    "error": {
+      "unknown": "发生未知错误。"
+    }
+  }
+}
