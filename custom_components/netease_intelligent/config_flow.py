@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -24,6 +25,8 @@ from .const import (
     DOMAIN,
 )
 from .urs import UrsClient, UrsError
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -67,6 +70,7 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
                 await self._init_sdk()
                 await (await self._client()).acquire_sms_code(user_input[CONF_PHONE])
             except Exception as err:  # noqa: BLE001 - 统一转为表单错误
+                _LOGGER.exception("获取短信验证码失败: %s", err)
                 errors["base"] = self._error_key(err)
             else:
                 self._phone = user_input[CONF_PHONE]
@@ -89,6 +93,7 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._phone, user_input[CONF_SMS_CODE]
                 )
             except Exception as err:  # noqa: BLE001
+                _LOGGER.exception("校验短信验证码失败: %s", err)
                 errors["base"] = self._error_key(err)
             else:
                 return await self._create_entry(token, ssn or self._phone)
@@ -112,6 +117,7 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
                     await self._client()
                 ).email_login(user_input[CONF_EMAIL], user_input[CONF_PASSWORD])
             except Exception as err:  # noqa: BLE001
+                _LOGGER.exception("邮箱密码登录失败: %s", err)
                 errors["base"] = self._error_key(err)
             else:
                 return await self._create_entry(
