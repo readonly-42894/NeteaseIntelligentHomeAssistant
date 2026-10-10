@@ -175,3 +175,74 @@ def test_charge_glyph_pasted() -> None:
     grid = [mp.MAP_VALUE_NOT_ARRIVED] * 16
     png = _render(grid=grid, resolution=1.0, charge=(1.0, 1.0, 0.0))
     assert (0xFF, 0x8F, 0x00) in _colors(png)
+
+
+def test_dark_mode_uses_dark_palette() -> None:
+    """``dark=True``：地面改用深色，浅色不再出现，且输出仍为合法 PNG。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 16
+    package = mp.parse_map(build_map(grid=grid, size_x=4, size_y=4, resolution=1.0))
+    png = mr.render_map(package, dark=True)
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    colors = _colors(png)
+    assert mr._COLOR_DARK_NOT_ARRIVED in colors
+    assert mr._COLOR_NOT_ARRIVED not in colors
+
+
+def test_dark_room_checkerboard_colors() -> None:
+    """``dark=True``：房间棋盘使用深色双色，浅色棋盘不出现。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED_ROOM_LOW] * 16
+    package = mp.parse_map(build_map(grid=grid, size_x=4, size_y=4, resolution=1.0))
+    colors = _colors(mr.render_map(package, dark=True))
+    pair = mr._ROOM_COLOR_DARK_NOT_ARRIVED[0]
+    assert pair[0] in colors and pair[1] in colors
+    assert (0xA9, 0x9B, 0xDB) not in colors
+
+
+def test_cell_color_accepts_palette() -> None:
+    """``_cell_color`` 的 ``palette`` 参数切换取色。"""
+    assert (
+        mr._cell_color(mp.MAP_VALUE_NOT_ARRIVED, 0, 0, False, mr._DARK_PALETTE)
+        == mr._COLOR_DARK_NOT_ARRIVED
+    )
+    assert (
+        mr._cell_color(mp.MAP_VALUE_OBSTACLE, 0, 0, False, mr._DARK_PALETTE)
+        == mr._COLOR_DARK_UNREACHABLE
+    )
+    assert (
+        mr._cell_color(mp.MAP_VALUE_ARRIVED, 0, 0, True, mr._DARK_PALETTE)
+        == mr._COLOR_DARK_ARRIVED
+    )
+
+
+def test_dark_mode_recolors_wall() -> None:
+    """``dark=True``：墙斜纹重着色为浅色，原深藏青不再出现。"""
+    grid = [0] * 16
+    grid[0] = mp.MAP_VALUE_NOT_ARRIVED
+    wall = [(1, [(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)])]
+    package = mp.parse_map(
+        build_map(grid=grid, size_x=4, size_y=4, resolution=1.0, wall=wall)
+    )
+    colors = _colors(mr.render_map(package, dark=True))
+    assert mr._COLOR_DARK_WALL in colors
+    assert (0x03, 0x21, 0x46) not in colors
+
+
+def test_dark_mode_path_color() -> None:
+    """``dark=True``：清扫轨迹使用深色调色板的轨迹色。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 16
+    history = [(0, 0.5, 0.5), (0, 1.5, 1.5), (0, 2.5, 2.5)]
+    package = mp.parse_map(
+        build_map(grid=grid, size_x=4, size_y=4, resolution=1.0, history=history)
+    )
+    assert mr._COLOR_DARK_PATH in _colors(mr.render_map(package, dark=True))
+
+
+def test_dark_mode_area_outline_color() -> None:
+    """``dark=True``：清扫区域轮廓/标签使用深色区域文字色。"""
+    grid = [0] * 16
+    grid[0] = mp.MAP_VALUE_NOT_ARRIVED
+    area = [(1, [(1.0, 1.0), (3.0, 1.0), (3.0, 3.0), (1.0, 3.0)])]
+    package = mp.parse_map(
+        build_map(grid=grid, size_x=4, size_y=4, resolution=1.0, area=area)
+    )
+    assert mr._COLOR_DARK_AREA_TEXT in _colors(mr.render_map(package, dark=True))

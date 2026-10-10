@@ -15,6 +15,8 @@
 - 标记：机器人 ``sweeper_map_robot``（物理 0.35m、按朝向旋转）、充电座
   ``sweeper_map_charge``（0.28m、按朝向旋转）、定点 ``sweeper_map_spot``（底端锚定）；
 - 房间名：白描边文字。
+- ``dark=True``（可选）：整幅地图改用深色调色板（深色界面下不刺眼），墙斜纹
+  纹理同步重着色；其余渲染流程完全一致。
 
 坐标约定：``MapData.physics_to_grid`` 得到栅格坐标；渲染时 **Y 轴翻转**，
 使栅格第 0 行绘制在图片底部，与 App 视角一致。
@@ -29,6 +31,7 @@ import io
 import math
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import lru_cache
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
@@ -84,6 +87,94 @@ _COLOR_WALL: tuple[int, int, int] = (0x36, 0x48, 0x66)  # 虚拟墙边框（swee
 _COLOR_WALL_TEXT: tuple[int, int, int] = (0x36, 0x48, 0x66)  # MapWallSpirit.WALL_TEXT_COLOR
 _COLOR_AREA_TEXT: tuple[int, int, int] = (0xFF, 0x8F, 0x00)  # 区域边框/标签 AREA_TEXT_COLOR
 _COLOR_AREA_FILL: tuple[int, int, int, int] = (0xFF, 0xCA, 0x65, 0x66)  # 区域填充 #66FFCA65
+
+# 深色调色板（``dark=True``）：在保持色相的前提下整体降低明度，避免在深色界面
+# 中出现刺眼的大面积白色地面；墙斜纹改为浅色（原图深藏青在深色底上不可见）。
+_COLOR_DARK_BACKGROUND: tuple[int, int, int] = (0x1C, 0x1C, 0x1E)
+_COLOR_DARK_UNREACHABLE: tuple[int, int, int] = (0x5B, 0x63, 0xCC)
+_COLOR_DARK_NOT_ARRIVED: tuple[int, int, int] = (0x2A, 0x2A, 0x2E)
+_ROOM_COLOR_DARK_NOT_ARRIVED: tuple[tuple[tuple[int, int, int], ...], ...] = (
+    ((0x4A, 0x43, 0x6B), (0x5E, 0x56, 0x82)),
+    ((0x33, 0x53, 0x5E), (0x42, 0x68, 0x74)),
+    ((0x6E, 0x48, 0x33), (0x88, 0x5A, 0x42)),
+    ((0x6B, 0x37, 0x49), (0x84, 0x47, 0x5B)),
+    ((0x5E, 0x4B, 0x5C), (0x74, 0x5E, 0x72)),
+    ((0x39, 0x3C, 0x58), (0x49, 0x4D, 0x6E)),
+)
+_COLOR_DARK_TEXT: tuple[int, int, int] = (0xE5, 0xE5, 0xE5)
+_COLOR_DARK_TEXT_STROKE: tuple[int, int, int] = (0x1C, 0x1C, 0x1E)
+_COLOR_DARK_ARRIVED: tuple[int, int, int] = (0x36, 0x40, 0x6B)
+_ROOM_COLOR_DARK_ARRIVED: tuple[tuple[int, int, int], ...] = (
+    (0x4A, 0x43, 0x6B),
+    (0x33, 0x53, 0x5E),
+    (0x6E, 0x48, 0x33),
+    (0x6B, 0x37, 0x49),
+    (0x5E, 0x4B, 0x5C),
+    (0x39, 0x3C, 0x58),
+)
+_COLOR_DARK_PATH: tuple[int, int, int] = (0x8A, 0xB6, 0xE8)
+_COLOR_DARK_WALL: tuple[int, int, int] = (0x8F, 0xA6, 0xCC)
+_COLOR_DARK_WALL_TEXT: tuple[int, int, int] = (0xC8, 0xD6, 0xEE)
+_COLOR_DARK_AREA_TEXT: tuple[int, int, int] = (0xFF, 0x8F, 0x00)
+_COLOR_DARK_AREA_FILL: tuple[int, int, int, int] = (0xFF, 0xCA, 0x65, 0x66)
+
+
+@dataclass(frozen=True)
+class _Palette:
+    """一套地图配色；浅/深两套在渲染流程中同构替换。"""
+
+    background: tuple[int, int, int]
+    unreachable: tuple[int, int, int]
+    not_arrived: tuple[int, int, int]
+    room_not_arrived: tuple[tuple[tuple[int, int, int], ...], ...]
+    text: tuple[int, int, int]
+    text_stroke: tuple[int, int, int]
+    arrived: tuple[int, int, int]
+    room_arrived: tuple[tuple[int, int, int], ...]
+    path: tuple[int, int, int]
+    wall: tuple[int, int, int]
+    wall_text: tuple[int, int, int]
+    area_text: tuple[int, int, int]
+    area_fill: tuple[int, int, int, int]
+    #: 墙斜纹纹理的重着色；``None`` 表示沿用 ``wall_cell.png`` 原始颜色。
+    wall_stripe: tuple[int, int, int] | None
+
+
+#: 浅色（默认）调色板：即 App 原生配色。
+_LIGHT_PALETTE = _Palette(
+    background=_COLOR_BACKGROUND,
+    unreachable=_COLOR_UNREACHABLE,
+    not_arrived=_COLOR_NOT_ARRIVED,
+    room_not_arrived=_ROOM_COLOR_NOT_ARRIVED,
+    text=_COLOR_TEXT,
+    text_stroke=_COLOR_TEXT_STROKE,
+    arrived=_COLOR_ARRIVED,
+    room_arrived=_ROOM_COLOR_ARRIVED,
+    path=_COLOR_PATH,
+    wall=_COLOR_WALL,
+    wall_text=_COLOR_WALL_TEXT,
+    area_text=_COLOR_AREA_TEXT,
+    area_fill=_COLOR_AREA_FILL,
+    wall_stripe=None,
+)
+
+#: 深色调色板。
+_DARK_PALETTE = _Palette(
+    background=_COLOR_DARK_BACKGROUND,
+    unreachable=_COLOR_DARK_UNREACHABLE,
+    not_arrived=_COLOR_DARK_NOT_ARRIVED,
+    room_not_arrived=_ROOM_COLOR_DARK_NOT_ARRIVED,
+    text=_COLOR_DARK_TEXT,
+    text_stroke=_COLOR_DARK_TEXT_STROKE,
+    arrived=_COLOR_DARK_ARRIVED,
+    room_arrived=_ROOM_COLOR_DARK_ARRIVED,
+    path=_COLOR_DARK_PATH,
+    wall=_COLOR_DARK_WALL,
+    wall_text=_COLOR_DARK_WALL_TEXT,
+    area_text=_COLOR_DARK_AREA_TEXT,
+    area_fill=_COLOR_DARK_AREA_FILL,
+    wall_stripe=_COLOR_DARK_WALL,
+)
 
 # 标记物理尺寸（米）：MapRobotSpirit.ROBOT_SIZE / MapChargerSpirit.CHARGE_SIZE。
 _ROBOT_SIZE_METERS: float = 0.35
@@ -154,28 +245,32 @@ def _room_palette_index(room_id: int) -> int:
 
 
 def _cell_color(
-    value: int, grid_x: int, grid_y: int, history: bool = False
+    value: int,
+    grid_x: int,
+    grid_y: int,
+    history: bool = False,
+    palette: _Palette = _LIGHT_PALETTE,
 ) -> tuple[int, int, int] | None:
     """栅格像素值 → 颜色；``None`` 表示背景（不绘制）。
 
     ``history`` 为 ``True`` 时按清扫结果显示：已清扫地面 ``MAP_COLOR_ARRIVED``、
     已清扫房间实色 ``ROOM_COLOR_ARRIVED``；为 ``False`` 时与 App 实时视图一致
-    （已清扫地面白色、房间一律棋盘格）。
+    （已清扫地面白色、房间一律棋盘格）。``palette`` 指定配色（浅/深）。
     """
     if value == MAP_VALUE_BACKGROUND:
         return None
     if value == MAP_VALUE_OBSTACLE:
-        return _COLOR_UNREACHABLE
+        return palette.unreachable
     if MAP_VALUE_NOT_ARRIVED_ROOM_LOW <= value <= MAP_VALUE_ARRIVED_ROOM_HIGH:
         index = _room_palette_index(map_value_2_room_id(value))
         if history and value >= MAP_VALUE_ARRIVED_ROOM_LOW:
-            return _ROOM_COLOR_ARRIVED[index]
-        palette = _ROOM_COLOR_NOT_ARRIVED[index]
-        return palette[((grid_x // 2) + (grid_y // 2)) % 2]
+            return palette.room_arrived[index]
+        pair = palette.room_not_arrived[index]
+        return pair[((grid_x // 2) + (grid_y // 2)) % 2]
     if history and value == MAP_VALUE_ARRIVED:
-        return _COLOR_ARRIVED
-    # NotArrived / 实时模式下的 Arrived：统一白色。
-    return _COLOR_NOT_ARRIVED
+        return palette.arrived
+    # NotArrived / 实时模式下的 Arrived：统一地面色。
+    return palette.not_arrived
 
 
 def _render_bounds(
@@ -263,6 +358,13 @@ def _render_bounds(
 def _load_asset(name: str) -> Image.Image:
     """加载 App 地图 drawable 资源（统一转为 RGBA；调用方不得修改返回对象）。"""
     return Image.open(os.path.join(_ASSETS_DIR, name)).convert("RGBA")
+
+
+def _recolor_tile(tile: Image.Image, color: tuple[int, int, int]) -> Image.Image:
+    """把纹理的 RGB 统一替换为 ``color``（保留 alpha），用于深色模式重着色。"""
+    tinted = Image.new("RGBA", tile.size, (*color, 0xFF))
+    tinted.putalpha(tile.getchannel("A"))
+    return tinted
 
 
 def _composite(image: Image.Image, layer: Image.Image, xy: tuple[int, int]) -> Image.Image:
@@ -385,15 +487,17 @@ def _draw_label(
     text: str,
     font: ImageFont.ImageFont | ImageFont.FreeTypeFont,
     fill: tuple[int, int, int],
+    *,
+    stroke: tuple[int, int, int] = _COLOR_TEXT_STROKE,
 ) -> None:
-    """绘制白描边标签（锚点为几何中心）。"""
+    """绘制描边标签（锚点为几何中心）；默认白描边（浅色模式）。"""
     draw.text(
         xy,
         text,
         font=font,
         fill=fill,
         stroke_width=2,
-        stroke_fill=_COLOR_TEXT_STROKE,
+        stroke_fill=stroke,
         anchor="mm",
     )
 
@@ -403,22 +507,25 @@ def render_map(
     *,
     target_size: int = MAP_DEFAULT_TARGET_SIZE,
     history: bool = True,
+    dark: bool = False,
 ) -> bytes:
     """把地图包渲染为 PNG 字节。
 
     ``package`` 需包含 ``map_data``（否则抛 ``ValueError``）；``target_size``
     为输出图片的最大边长（像素）。``history`` 为 ``True``（默认）时按清扫结果
     着色并绘制 ``MapHistory`` 轨迹；为 ``False`` 时保持 App 实时视图外观。
+    ``dark`` 为 ``True`` 时使用深色调色板（深色界面下更柔和）。
     """
     map_data = package.map_data
     if map_data is None or map_data.size_x <= 0 or map_data.size_y <= 0:
         raise ValueError("map package has no usable map data")
 
+    palette = _DARK_PALETTE if dark else _LIGHT_PALETTE
     min_x, max_x, min_y, max_y = _render_bounds(map_data, package)
     width = max_x - min_x + 1
     height = max_y - min_y + 1
     cell = max(1, target_size // max(width, height))
-    image = Image.new("RGB", (width * cell, height * cell), _COLOR_BACKGROUND)
+    image = Image.new("RGB", (width * cell, height * cell), palette.background)
     # 背景：App ``sweeper_bg_map``（底色 ``fill_4`` + 平铺 ``sweeper_bg_cell``）。
     image = _tile_background(image, cell)
     draw = ImageDraw.Draw(image)
@@ -437,7 +544,9 @@ def render_map(
         row = grid_y * map_data.size_x
         pixel_y = (max_y - grid_y) * cell
         for grid_x in range(min_x, max_x + 1):
-            color = _cell_color(map_data.grid[row + grid_x], grid_x, grid_y, history)
+            color = _cell_color(
+                map_data.grid[row + grid_x], grid_x, grid_y, history, palette
+            )
             if color is None:
                 continue
             pixel_x = (grid_x - min_x) * cell
@@ -449,6 +558,8 @@ def render_map(
     # 虚拟墙：App ``sweeper_map_wall_unselected``——平铺斜纹纹理填充。
     if package.wall is not None and package.wall.items:
         wall_tile = _load_asset("wall_cell.png")
+        if palette.wall_stripe is not None:
+            wall_tile = _recolor_tile(wall_tile, palette.wall_stripe)
         wall_tile_px = max(4, int(round(cell * 6)))
         for item in package.wall.items:
             pixels = _polygon_pixels(item, to_pixel)
@@ -463,7 +574,7 @@ def render_map(
         for item in package.area.items:
             pixels = _polygon_pixels(item, to_pixel)
             if len(pixels) >= 3:
-                overlay_draw.polygon(pixels, fill=_COLOR_AREA_FILL)
+                overlay_draw.polygon(pixels, fill=palette.area_fill)
         image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
         draw = ImageDraw.Draw(image)
 
@@ -478,7 +589,7 @@ def render_map(
             if pixel is not None
         ]
         if len(points) >= 2:
-            draw.line(points, fill=_COLOR_PATH, width=max(2, cell), joint="curve")
+            draw.line(points, fill=palette.path, width=max(2, cell), joint="curve")
 
     # 虚拟墙：轮廓线 + 尺寸标签。
     if package.wall is not None and package.wall.items:
@@ -489,13 +600,20 @@ def render_map(
                 continue
             draw.line(
                 pixels + [pixels[0]],
-                fill=_COLOR_WALL,
+                fill=palette.wall,
                 width=max(2, int(round(cell * 0.6))),
             )
             center = _polygon_center(pixels)
             label = _area_size_label(item)
             if center is not None and label:
-                _draw_label(draw, center, label, wall_font, _COLOR_WALL_TEXT)
+                _draw_label(
+                    draw,
+                    center,
+                    label,
+                    wall_font,
+                    palette.wall_text,
+                    stroke=palette.text_stroke,
+                )
 
     # 清扫区域：轮廓线 + 序号标签。
     if package.area is not None and package.area.items:
@@ -504,10 +622,21 @@ def render_map(
             pixels = _polygon_pixels(item, to_pixel)
             if len(pixels) < 3:
                 continue
-            draw.line(pixels + [pixels[0]], fill=_COLOR_AREA_TEXT, width=max(1, cell // 2))
+            draw.line(
+                pixels + [pixels[0]],
+                fill=palette.area_text,
+                width=max(1, cell // 2),
+            )
             center = _polygon_center(pixels)
             if center is not None:
-                _draw_label(draw, center, f"{index:02d}", area_font, _COLOR_AREA_TEXT)
+                _draw_label(
+                    draw,
+                    center,
+                    f"{index:02d}",
+                    area_font,
+                    palette.area_text,
+                    stroke=palette.text_stroke,
+                )
 
     # 房间名。
     if package.rooms:
@@ -524,9 +653,9 @@ def render_map(
                 (pixel_x, pixel_y),
                 room.name,
                 font=font,
-                fill=_COLOR_TEXT,
+                fill=palette.text,
                 stroke_width=max(1, cell // 2),
-                stroke_fill=_COLOR_TEXT_STROKE,
+                stroke_fill=palette.text_stroke,
                 anchor="mm",
             )
 
