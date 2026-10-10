@@ -12,17 +12,31 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
     CONF_EMAIL,
+    CONF_MAP_THEME,
     CONF_PASSWORD,
     CONF_PHONE,
     CONF_SMS_CODE,
     CONF_TOKEN,
     CONF_TOKEN_ID,
+    DEFAULT_MAP_THEME,
     DOMAIN,
+    MAP_THEME_OPTIONS,
 )
 from .urs import UrsClient, UrsError
 
@@ -33,6 +47,12 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for 网易智造."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """返回选项流程（地图配色等）。"""
+        return NeteaseIntelligentOptionsFlow()
 
     def __init__(self) -> None:
         """Initialize the flow."""
@@ -190,3 +210,30 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
                 return "id_invalid"
             return "unknown"
         return "cannot_connect"
+
+
+class NeteaseIntelligentOptionsFlow(OptionsFlow):
+    """Handle options for 网易智造（目前为地图配色）。"""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """选择地图配色（浅色/深色/跟随界面）。"""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        current = self.config_entry.options.get(CONF_MAP_THEME, DEFAULT_MAP_THEME)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_MAP_THEME, default=current): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(MAP_THEME_OPTIONS),
+                            translation_key="map_theme",
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                }
+            ),
+        )

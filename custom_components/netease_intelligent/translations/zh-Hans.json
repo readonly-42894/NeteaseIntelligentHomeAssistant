@@ -55,6 +55,26 @@
       "unknown": "发生未知错误。"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "地图配色",
+        "description": "选择扫地机器人地图的配色。",
+        "data": {
+          "map_theme": "配色"
+        }
+      }
+    }
+  },
+  "selector": {
+    "map_theme": {
+      "options": {
+        "light": "浅色",
+        "dark": "深色",
+        "auto": "跟随界面"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "battery": { "name": "电量" },

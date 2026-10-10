@@ -55,6 +55,26 @@
       "unknown": "An unknown error occurred."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Map theme",
+        "description": "Choose the color scheme for the robot vacuum map.",
+        "data": {
+          "map_theme": "Color scheme"
+        }
+      }
+    }
+  },
+  "selector": {
+    "map_theme": {
+      "options": {
+        "light": "Light",
+        "dark": "Dark",
+        "auto": "Follow interface"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "battery": { "name": "Battery" },

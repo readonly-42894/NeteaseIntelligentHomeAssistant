@@ -123,4 +123,13 @@ CONF_SMS_CODE: Final = "sms_code"
 CONF_EMAIL: Final = "email"
 CONF_PASSWORD: Final = "password"
 
+# 地图配色选项（image 实体，见 image.py / config_flow.py）：
+# light=浅色（默认）、dark=深色、auto=跟随 Home Assistant 前端主题。
+CONF_MAP_THEME: Final = "map_theme"
+MAP_THEME_LIGHT: Final = "light"
+MAP_THEME_DARK: Final = "dark"
+MAP_THEME_AUTO: Final = "auto"
+MAP_THEME_OPTIONS: Final = (MAP_THEME_LIGHT, MAP_THEME_DARK, MAP_THEME_AUTO)
+DEFAULT_MAP_THEME: Final = MAP_THEME_LIGHT
+
 DEFAULT_NAME: Final = NAME

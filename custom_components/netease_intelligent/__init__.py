@@ -54,6 +54,11 @@ def _register_sweeper_devices(
         )
 
 
+async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """选项更新后重载集成，使新配置（如地图配色）立即生效。"""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up 网易智造 from a config entry."""
     client = NeteaseIntelligentApiClient(
@@ -96,6 +101,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_update_options))
     return True
 
 
