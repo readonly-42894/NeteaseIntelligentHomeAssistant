@@ -196,3 +196,16 @@ jadx --no-res -d decompiled 网易智造_5.3.5.apk
 ```
 
 - `openapi.yaml` 由 [`scripts/gen_openapi.py`](../scripts/gen_openapi.py) 生成，改端点优先改脚本再重新生成。
+
+## 10. 集成实现（家庭数据抽象）
+
+集成 `custom_components/netease_intelligent/` 在登录（第 7.9 节）之上，用「模型 + 客户端 + 协调器」三层抽象家庭数据，作为设备/场景实体的地基：
+
+| 文件 | 职责 |
+|------|------|
+| `models.py` | 家庭域 DTO（`FamilyInfo`/`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv`/`EnvInfo`）。字段为 `snake_case`，`from_dict` 按 `camelCase` 映射回 API JSON 键（如 `family_id` ← `familyId`），缺字段容错。 |
+| `api.py` | `NeteaseIntelligentApiClient`：按第 4 节注入 `Cookie`（`ONE_TOKEN` / `ONE_TOKEN_ID` / `UA-INFO`），按第 5 节解包 `ResponseWrapper`（`code != 0` 抛 `ApiError`），返回模型对象。 |
+| `coordinator.py` | `NeteaseIntelligentCoordinator`（`DataUpdateCoordinator`）：周期拉取 `GET /ai-app/family/info`，按家庭 ID 建索引存入 `coordinator.data`。 |
+| `__init__.py` | 建客户端与协调器，`async_config_entry_first_refresh` 首次校验凭据，存入 `hass.data[DOMAIN][entry_id]`。 |
+
+已实现端点：`GET /ai-app/family/info`（家庭列表）、`GET /ai-app/family/query`（单家庭）、`GET /ai-app/family/env/info/homepage`（家庭环境信息）、`GET /ai-app/equip/list`（设备列表）。

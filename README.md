@@ -32,8 +32,19 @@
 - [x] HACS 合规骨架（`hacs.json` / `manifest.json` / brand 资源 / 校验工作流）
 - [x] 最小可加载集成（Config Flow 手动录入 Cookie 凭据）
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
+- [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
+
+## 集成结构
+
+| 文件 | 说明 |
+|------|------|
+| `config_flow.py` / `urs.py` | 登录配置流与网易 URS 登录 SDK 协议实现 |
+| `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），当前实现家庭域端点 |
+| `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO） |
+| `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data` |
+| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]` |
 
 ## API 逆向
 
