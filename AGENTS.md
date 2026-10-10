@@ -6,9 +6,10 @@
 
 网易智造 App（主包 `com.netease.intelligent`，versionName 5.3.5）的逆向与 API 提取仓库。
 
-- 原始素材：`网易智造_5.3.5.apk` —— 逆向源文件，**已纳入 git 跟踪，禁止 ignore**（约 114MB，GitHub 单文件上限 100MB，推送前需评估 LFS 或自建远端）。
-- 交付文档：`openapi.yaml` —— OpenAPI 3.0.3，覆盖全部端点与 schema。
-- 生成器与反编译产物在磁盘临时区（**非 git 跟踪**）：`/var/tmp/gen_openapi.py`、`/var/tmp/nz_decompiled/sources/`。
+- 原始素材：`网易智造_5.3.5.apk` —— 逆向源文件，已通过 **Git LFS** 跟踪（114MB，`git lfs pull` 拉取实际内容；`git push` 前需确认远端支持 LFS）。
+- 交付文档：`openapi.yaml`（OpenAPI 3.0.3，端点/schema）、`API工作原理.md`（认证/响应结构/模块组织等机制说明）。
+- 生成器：`scripts/gen_openapi.py`（重新生成 `openapi.yaml`）、`scripts/extract_fields.sh`（字段提取辅助）。
+- 反编译源码**不纳入 git**（体积大、第三方库为可复现噪声）；需要时用 jadx 从 APK 重新反编译。
 
 ## 工作纪律
 
@@ -37,5 +38,6 @@ Co-Authored-By: <Agent应用名> v<版本>
 
 ## 文档维护约定
 
-- `openapi.yaml` 是唯一交付文档；新增/修正端点时，优先编辑 `/var/tmp/gen_openapi.py` 再重新生成，或直接编辑 YAML。
-- API 层定义在各模块的 `Action.java`（`kernel`/`sweeper`/`firmware`/`host`/`hybrid`），位于 `/var/tmp/nz_decompiled/sources/`。
+- `openapi.yaml` 是端点交付文档；新增/修正端点时，优先编辑 `scripts/gen_openapi.py` 再重新生成（`python3 scripts/gen_openapi.py`），或直接编辑 YAML。
+- `API工作原理.md` 说明认证、统一响应结构、模块组织、登录流程等机制。
+- API 层定义在各模块的 `Action.java`（`kernel`/`sweeper`/`firmware`/`host`/`hybrid`）；反编译源码不纳入 git。
