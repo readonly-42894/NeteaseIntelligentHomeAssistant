@@ -36,6 +36,7 @@
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
 - [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
 - [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor`
+- [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG）
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
@@ -49,7 +50,10 @@
 | `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data`；另含 `NeteaseIntelligentSweeperCoordinator` 按 `equipId` 拉取单台扫地机实时数据 |
 | `vacuum.py` | 扫地机器人 `vacuum` 实体（`StateVacuumEntity` + `VacuumActivity`：清扫/暂停/回充/吸力/寻找设备） |
 | `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
-| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor 实体 |
+| `image.py` | 扫地机器人 `image` 实体：把 `mapUrl` 地图包渲染为 PNG 展示 |
+| `map_parser.py` | 扫地机二进制地图包解析（复刻 App `MapDataParser`，纯标准库） |
+| `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 `MapBaseSpirit` 上色与坐标变换） |
+| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor/image 实体 |
 
 ## API 逆向
 
@@ -64,8 +68,7 @@ pip install -r requirements_test.txt
 pytest
 ```
 
-`tests/` 覆盖家庭域数据模型（`models.py`）的反序列化与容错、API 客户端（`api.py`）的认证/UA 生成，以及扫地机器人状态映射（`sweeper_activity`）。测试环境通过 `tests/conftest.py`
-用合成包名加载 `const` / `models` / `api` 这些纯 Python 模块，避免引入 `homeassistant` 依赖。
+`tests/` 覆盖家庭域数据模型（`models.py`）的反序列化与容错、API 客户端（`api.py`）的认证/UA 生成、扫地机器人状态映射（`sweeper_activity`），以及地图包解析（`map_parser.py`）与渲染（`map_render.py`）。测试环境通过 `tests/conftest.py` 用合成包名加载 `const` / `models` / `api` / `map_parser` / `map_render` 这些模块，避免引入 `homeassistant` 依赖；地图测试用 `tests/map_fixture.py` 合成的地图包（不含真实户型数据），渲染测试需要 Pillow（Home Assistant 核心自带，测试环境由 `requirements_test.txt` 安装）。
 
 ## 许可
 
