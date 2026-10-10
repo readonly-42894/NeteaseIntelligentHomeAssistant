@@ -1,15 +1,20 @@
 """把解析出的地图包渲染为 PNG（Pillow 实现）。
 
-复刻 App ``MapBaseSpirit`` 的上色规则与 ``MapView`` 的坐标变换，并叠加参考
-Home Assistant 集成 Xiaomi-Cloud-Map-Extractor 的图层，输出一张可直接在
-Home Assistant ``image`` 实体中展示的静态地图：
+复刻 App spirit（``MapBaseSpirit`` / ``MapWallSpirit`` / ``MapAreaSpirit`` /
+``MapChargerSpirit`` / ``MapRobotSpirit`` / ``MapSpotSpirit``）的上色与变换规则，
+并直接复用 App 的 ``res/drawable`` 图标/纹理（见 ``map_assets/``），输出一张可直接
+在 Home Assistant ``image`` 实体中展示的静态地图：
 
+- 背景：底色 ``fill_4``（``#F9FAFC``）＋平铺 ``sweeper_bg_cell`` 纹理；
 - 栅格底色：障碍 ``#717AE4``、未清扫地面白色；房间按 ``ROOM_COLOR_NOT_ARRIVED``
   6 组双色棋盘交替着色；
 - 清扫结果（``history=True``，默认）：已清扫地面 ``MAP_COLOR_ARRIVED``、已清扫
   房间实色 ``ROOM_COLOR_ARRIVED``，并绘制 ``MapHistory`` 轨迹；
-- 叠加层：清扫区域（半透明多边形）、虚拟墙（轮廓线）、房间名（白描边）、
-  机器人（带朝向）、充电座（扇形朝向）、定点。
+- 虚拟墙：平铺 ``sweeper_map_wall_cell`` 斜纹 ＋ ``#364866`` 边框 ＋ 尺寸标签；
+- 清扫区域：``#66FFCA65`` 填充 ＋ ``#FF8F00`` 边框 ＋ 序号标签；
+- 标记：机器人 ``sweeper_map_robot``（物理 0.35m、按朝向旋转）、充电座
+  ``sweeper_map_charge``（0.28m、按朝向旋转）、定点 ``sweeper_map_spot``（底端锚定）；
+- 房间名：白描边文字。
 
 坐标约定：``MapData.physics_to_grid`` 得到栅格坐标；渲染时 **Y 轴翻转**，
 使栅格第 0 行绘制在图片底部，与 App 视角一致。
@@ -24,8 +29,9 @@ import io
 import math
 import os
 from collections.abc import Callable
+from functools import lru_cache
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 from .map_parser import (
     MAP_VALUE_ARRIVED,
@@ -46,8 +52,8 @@ __all__ = ["render_map", "MAP_DEFAULT_TARGET_SIZE"]
 #: 输出图片的最大目标边长（像素），实际尺寸按栅格长宽比缩放。
 MAP_DEFAULT_TARGET_SIZE: int = 800
 
-# 颜色（RGB）——对应反编译 MapBaseSpirit 的整型颜色常量。
-_COLOR_BACKGROUND: tuple[int, int, int] = (0xF2, 0xF2, 0xF2)  # 未探明区域（留白）
+# 颜色（RGB/A）——对应反编译 spirit 的颜色常量与 drawable 定义。
+_COLOR_BACKGROUND: tuple[int, int, int] = (0xF9, 0xFA, 0xFC)  # fill_4 = gray_200（地图底色）
 _COLOR_UNREACHABLE: tuple[int, int, int] = (0x71, 0x7A, 0xE4)  # MAP_COLOR_UNREACHABLE
 _COLOR_NOT_ARRIVED: tuple[int, int, int] = (0xFF, 0xFF, 0xFF)  # MAP_COLOR_NOT_ARRIVED
 # ROOM_COLOR_NOT_ARRIVED：6 组双色，按 ((x // 2) + (y // 2)) % 2 交替。
@@ -60,10 +66,6 @@ _ROOM_COLOR_NOT_ARRIVED: tuple[tuple[tuple[int, int, int], ...], ...] = (
     ((0x77, 0x7C, 0xB2), (0x9A, 0xA1, 0xC9)),
 )
 
-_COLOR_ROBOT: tuple[int, int, int] = (0x33, 0x33, 0x33)  # 机器人标记
-_COLOR_CHARGE: tuple[int, int, int] = (0xFF, 0xB3, 0x00)  # 充电座标记
-_COLOR_SPOT: tuple[int, int, int] = (0xE5, 0x39, 0x35)  # 定点标记
-_COLOR_OUTLINE: tuple[int, int, int] = (0xFF, 0xFF, 0xFF)  # 标记描边
 _COLOR_TEXT: tuple[int, int, int] = (0x22, 0x22, 0x22)  # 房间名文字色（R.color.txt_1）
 _COLOR_TEXT_STROKE: tuple[int, int, int] = (0xFF, 0xFF, 0xFF)
 # 已清扫区域（history 模式）：MAP_COLOR_ARRIVED 与 ROOM_COLOR_ARRIVED（6 实色）。
@@ -76,16 +78,19 @@ _ROOM_COLOR_ARRIVED: tuple[tuple[int, int, int], ...] = (
     (0xD2, 0xA9, 0xCD),
     (0x77, 0x7C, 0xB2),
 )
-# 叠加层：清扫轨迹、虚拟墙、清扫区域（参考 Xiaomi-Cloud-Map-Extractor 配色）。
+# 叠加层：清扫轨迹、虚拟墙、清扫区域（取 App drawable 的精确颜色）。
 _COLOR_PATH: tuple[int, int, int] = (0x93, 0xC2, 0xEE)
-_COLOR_WALL: tuple[int, int, int] = (0xFF, 0x00, 0x00)
+_COLOR_WALL: tuple[int, int, int] = (0x36, 0x48, 0x66)  # 虚拟墙边框（sweeper_map_wall_*）
 _COLOR_WALL_TEXT: tuple[int, int, int] = (0x36, 0x48, 0x66)  # MapWallSpirit.WALL_TEXT_COLOR
-_COLOR_AREA: tuple[int, int, int, int] = (0xAD, 0xD8, 0xFF, 0x8F)  # RGBA 半透明
-_COLOR_AREA_TEXT: tuple[int, int, int] = (0xFF, 0x8F, 0x00)  # MapAreaSpirit.AREA_TEXT_COLOR
+_COLOR_AREA_TEXT: tuple[int, int, int] = (0xFF, 0x8F, 0x00)  # 区域边框/标签 AREA_TEXT_COLOR
+_COLOR_AREA_FILL: tuple[int, int, int, int] = (0xFF, 0xCA, 0x65, 0x66)  # 区域填充 #66FFCA65
 
 # 标记物理尺寸（米）：MapRobotSpirit.ROBOT_SIZE / MapChargerSpirit.CHARGE_SIZE。
 _ROBOT_SIZE_METERS: float = 0.35
 _CHARGER_SIZE_METERS: float = 0.28
+
+#: App drawable 资源目录（``res/drawable*`` 中地图相关图标/纹理，透明 PNG）。
+_ASSETS_DIR: str = os.path.join(os.path.dirname(__file__), "map_assets")
 
 #: 优先使用的 CJK 字体路径（跨平台常见位置），均不存在时回退 Pillow 默认字体。
 _FONT_CANDIDATES: tuple[str, ...] = (
@@ -254,67 +259,89 @@ def _render_bounds(
     return int(min_x), int(max_x), int(min_y), int(max_y)
 
 
-def _draw_marker(
-    draw: ImageDraw.ImageDraw,
-    x: float,
-    y: float,
-    radius: int,
-    fill: tuple[int, int, int],
-) -> None:
-    """绘制带白色描边的圆形标记。"""
-    draw.ellipse(
-        [x - radius, y - radius, x + radius, y + radius],
-        fill=fill,
-        outline=_COLOR_OUTLINE,
-        width=max(1, radius // 3),
+@lru_cache(maxsize=None)
+def _load_asset(name: str) -> Image.Image:
+    """加载 App 地图 drawable 资源（统一转为 RGBA；调用方不得修改返回对象）。"""
+    return Image.open(os.path.join(_ASSETS_DIR, name)).convert("RGBA")
+
+
+def _composite(image: Image.Image, layer: Image.Image, xy: tuple[int, int]) -> Image.Image:
+    """把 RGBA ``layer`` 以自身 alpha 叠加到 ``image``（返回新的 RGB 图像）。"""
+    base = image.convert("RGBA")
+    base.paste(layer, xy, layer.getchannel("A"))
+    return base.convert("RGB")
+
+
+def _tile_image(tile: Image.Image, size: tuple[int, int], tile_px: int) -> Image.Image:
+    """把 ``tile`` 缩放为 ``tile_px`` 见方后平铺铺满 ``size``（RGBA，未覆盖处透明）。"""
+    tile_px = max(1, tile_px)
+    scaled = tile.resize((tile_px, tile_px), Image.LANCZOS)
+    out = Image.new("RGBA", size, (0, 0, 0, 0))
+    for y in range(0, size[1], tile_px):
+        for x in range(0, size[0], tile_px):
+            out.paste(scaled, (x, y))
+    return out
+
+
+def _tile_background(image: Image.Image, cell: int) -> Image.Image:
+    """铺 App 地图背景（``sweeper_bg_map``：底色 ``fill_4`` + 平铺 ``sweeper_bg_cell``）。"""
+    bg = _tile_image(
+        _load_asset("bg_cell.png"), image.size, max(4, int(round(cell * 6)))
     )
+    return _composite(image, bg, (0, 0))
+
+
+def _fill_polygon_tiled(
+    image: Image.Image,
+    pixels: list[tuple[float, float]],
+    tile: Image.Image,
+    tile_px: int,
+) -> Image.Image:
+    """用平铺纹理填充多边形（App 虚拟墙 ``sweeper_map_wall_unselected``）。"""
+    xs = [p[0] for p in pixels]
+    ys = [p[1] for p in pixels]
+    x0, y0 = int(math.floor(min(xs))), int(math.floor(min(ys)))
+    x1, y1 = int(math.ceil(max(xs))) + 1, int(math.ceil(max(ys))) + 1
+    width, height = x1 - x0, y1 - y0
+    if width <= 0 or height <= 0:
+        return image
+    patch = _tile_image(tile, (width, height), tile_px)
+    mask = Image.new("L", (width, height), 0)
+    ImageDraw.Draw(mask).polygon([(p[0] - x0, p[1] - y0) for p in pixels], fill=255)
+    patch.putalpha(ImageChops.multiply(patch.getchannel("A"), mask))
+    return _composite(image, patch, (x0, y0))
+
+
+def _paste_glyph(
+    image: Image.Image,
+    xy: tuple[float, float],
+    glyph: Image.Image,
+    size_px: int,
+    angle_deg: float = 0.0,
+    *,
+    anchor_bottom: bool = False,
+) -> Image.Image:
+    """在 ``xy`` 处贴一张方形 App 图标（返回新的 RGB 图像）。
+
+    ``angle_deg`` 为逆时针角度（Pillow 约定，对应 App ``canvas.rotate(-deg(phi))``）；
+    ``anchor_bottom=True`` 时图标底边对齐 ``xy``（定点图钉），否则几何中心对齐。
+    """
+    side = max(1, int(round(size_px)))
+    tile = glyph.resize((side, side), Image.LANCZOS)
+    if angle_deg:
+        tile = tile.rotate(angle_deg, expand=True, resample=Image.BICUBIC)
+    x, y = xy
+    if anchor_bottom:
+        pos = (x - tile.width / 2, y - tile.height)
+    else:
+        pos = (x - tile.width / 2, y - tile.height / 2)
+    return _composite(image, tile, (int(round(pos[0])), int(round(pos[1]))))
 
 
 def _marker_radius(map_data: MapData, cell: int, size_meters: float) -> int:
     """按标记物理尺寸（米）换算像素半径（``size/2/resolution*cell``）。"""
     resolution = map_data.resolution or 1.0
     return max(3, int(round(size_meters / 2 / resolution * cell)))
-
-
-def _draw_robot(
-    draw: ImageDraw.ImageDraw,
-    x: float,
-    y: float,
-    radius: int,
-    phi: float,
-) -> None:
-    """绘制机器人：圆盘 + 指向 ``phi`` 方向的白色箭头。
-
-    ``phi`` 为物理朝向（弧度，逆时针、Y 轴向上）；渲染图 Y 轴向下，故图中角度
-    取 ``-phi``（与 App ``canvas.rotate(-Math.toDegrees(posePhi))`` 一致）。
-    """
-    _draw_marker(draw, x, y, radius, _COLOR_ROBOT)
-    angle = -phi
-    fx, fy = math.cos(angle), math.sin(angle)
-    px, py = -fy, fx
-    tip = (x + fx * radius * 0.9, y + fy * radius * 0.9)
-    left = (x + fx * radius * 0.2 + px * radius * 0.45, y + fy * radius * 0.2 + py * radius * 0.45)
-    right = (x + fx * radius * 0.2 - px * radius * 0.45, y + fy * radius * 0.2 - py * radius * 0.45)
-    draw.polygon([tip, left, right], fill=_COLOR_OUTLINE)
-
-
-def _draw_charger(
-    draw: ImageDraw.ImageDraw,
-    x: float,
-    y: float,
-    radius: int,
-    phi: float,
-) -> None:
-    """绘制充电座：指向 ``phi`` 方向的半圆扇形（参考 Xiaomi-Cloud-Map-Extractor）。"""
-    angle = -math.degrees(phi)
-    draw.pieslice(
-        [x - radius, y - radius, x + radius, y + radius],
-        start=angle - 90,
-        end=angle + 90,
-        fill=_COLOR_CHARGE,
-        outline=_COLOR_OUTLINE,
-        width=max(1, radius // 3),
-    )
 
 
 def _polygon_pixels(
@@ -392,6 +419,8 @@ def render_map(
     height = max_y - min_y + 1
     cell = max(1, target_size // max(width, height))
     image = Image.new("RGB", (width * cell, height * cell), _COLOR_BACKGROUND)
+    # 背景：App ``sweeper_bg_map``（底色 ``fill_4`` + 平铺 ``sweeper_bg_cell``）。
+    image = _tile_background(image, cell)
     draw = ImageDraw.Draw(image)
 
     def to_pixel(physics_x: float, physics_y: float) -> tuple[float, float] | None:
@@ -417,14 +446,24 @@ def render_map(
                 fill=color,
             )
 
-    # 清扫区域：半透明填充（RGBA 叠加层）。
+    # 虚拟墙：App ``sweeper_map_wall_unselected``——平铺斜纹纹理填充。
+    if package.wall is not None and package.wall.items:
+        wall_tile = _load_asset("wall_cell.png")
+        wall_tile_px = max(4, int(round(cell * 6)))
+        for item in package.wall.items:
+            pixels = _polygon_pixels(item, to_pixel)
+            if len(pixels) >= 3:
+                image = _fill_polygon_tiled(image, pixels, wall_tile, wall_tile_px)
+        draw = ImageDraw.Draw(image)
+
+    # 清扫区域：App ``sweeper_map_area_unselected``——半透明实色填充（RGBA 叠加层）。
     if package.area is not None and package.area.items:
         overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
         overlay_draw = ImageDraw.Draw(overlay)
         for item in package.area.items:
             pixels = _polygon_pixels(item, to_pixel)
             if len(pixels) >= 3:
-                overlay_draw.polygon(pixels, fill=_COLOR_AREA)
+                overlay_draw.polygon(pixels, fill=_COLOR_AREA_FILL)
         image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
         draw = ImageDraw.Draw(image)
 
@@ -448,7 +487,11 @@ def render_map(
             pixels = _polygon_pixels(item, to_pixel)
             if len(pixels) < 3:
                 continue
-            draw.line(pixels + [pixels[0]], fill=_COLOR_WALL, width=max(2, cell))
+            draw.line(
+                pixels + [pixels[0]],
+                fill=_COLOR_WALL,
+                width=max(2, int(round(cell * 0.6))),
+            )
             center = _polygon_center(pixels)
             label = _area_size_label(item)
             if center is not None and label:
@@ -487,25 +530,36 @@ def render_map(
                 anchor="mm",
             )
 
-    # 标记：充电座、机器人、定点（物理坐标 → 栅格 → 像素，按物理尺寸换算半径）。
-    charger_radius = _marker_radius(map_data, cell, _CHARGER_SIZE_METERS)
-    robot_radius = _marker_radius(map_data, cell, _ROBOT_SIZE_METERS)
-    spot_radius = max(2, cell * 2)
+    # 标记：直接贴 App 图标（机器人/充电座按朝向旋转，定点底端锚定）。
     if package.charge is not None:
         pixel = to_pixel(package.charge.pose_x, package.charge.pose_y)
         if pixel is not None:
-            _draw_charger(
-                draw, pixel[0], pixel[1], charger_radius, package.charge.pose_phi
+            image = _paste_glyph(
+                image,
+                pixel,
+                _load_asset("charge.png"),
+                2 * _marker_radius(map_data, cell, _CHARGER_SIZE_METERS),
+                math.degrees(package.charge.pose_phi),
             )
     if package.spot is not None:
         pixel = to_pixel(package.spot.pose_x, package.spot.pose_y)
         if pixel is not None:
-            _draw_marker(draw, pixel[0], pixel[1], spot_radius, _COLOR_SPOT)
+            image = _paste_glyph(
+                image,
+                pixel,
+                _load_asset("spot.png"),
+                max(8, int(round(cell * 4))),
+                anchor_bottom=True,
+            )
     if package.robot is not None:
         pixel = to_pixel(package.robot.pose_x, package.robot.pose_y)
         if pixel is not None:
-            _draw_robot(
-                draw, pixel[0], pixel[1], robot_radius, package.robot.pose_phi
+            image = _paste_glyph(
+                image,
+                pixel,
+                _load_asset("robot.png"),
+                2 * _marker_radius(map_data, cell, _ROBOT_SIZE_METERS),
+                math.degrees(package.robot.pose_phi),
             )
 
     buffer = io.BytesIO()

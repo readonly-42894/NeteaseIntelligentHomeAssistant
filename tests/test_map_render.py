@@ -122,7 +122,7 @@ def test_history_path_requires_two_points() -> None:
 
 
 def test_wall_outline_color() -> None:
-    """虚拟墙绘制为轮廓线（参考配色红色）。"""
+    """虚拟墙绘制为 App 边框色 ``#364866``（含斜纹纹理填充）。"""
     grid = [0] * 16
     grid[0] = mp.MAP_VALUE_NOT_ARRIVED
     wall = [(1, [(0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)])]
@@ -151,3 +151,27 @@ def test_marker_radius_uses_physical_size() -> None:
     assert mr._marker_radius(map_data, 10, 0.28) == 28
     # 分辨率缺失时按 1.0 兜底，且至少 3px
     assert mr._marker_radius(mp.MapData(size_x=1, size_y=1, resolution=0.0), 1, 0.35) == 3
+
+
+def test_map_assets_available() -> None:
+    """App 地图 drawable 资源可从包内加载（尺寸与 APK 一致）。"""
+    assert mr._load_asset("robot.png").size == (132, 132)
+    assert mr._load_asset("charge.png").size == (108, 108)
+    assert mr._load_asset("spot.png").size == (72, 72)
+    assert mr._load_asset("wall_cell.png").size == (80, 80)
+    assert mr._load_asset("area_cell.png").size == (80, 80)
+    assert mr._load_asset("bg_cell.png").size == (15, 15)
+
+
+def test_robot_glyph_pasted() -> None:
+    """机器人直接贴 App 图标（出现图标主体蓝 #404BCA）。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 16
+    png = _render(grid=grid, resolution=1.0, robot=(1, 1.0, 1.0, 0.0))
+    assert (0x40, 0x4B, 0xCA) in _colors(png)
+
+
+def test_charge_glyph_pasted() -> None:
+    """充电座直接贴 App 图标（出现图标橙 #FF8F00）。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 16
+    png = _render(grid=grid, resolution=1.0, charge=(1.0, 1.0, 0.0))
+    assert (0xFF, 0x8F, 0x00) in _colors(png)
