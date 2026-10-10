@@ -35,6 +35,15 @@ SWEEPER_MODE_IDLE: Final = frozenset(
 # 充电状态（ChargeStatusEnum）：0=未充电，1=充电中。
 SWEEPER_CHARGE_CHARGING: Final = 1
 
+# 故障类型（``SweeperDeviceData.faultType``）：仅 ``1`` 表示设备故障。App 的
+# ``ErrorToast.setData(faultType, faultCode)`` 只在 ``faultType == 1`` 时显示错误
+# 横幅，并由 ``faultCode`` 选择 ``sweeper_<faultCode>_error_title/content`` 文案
+# （见 sweeper/modules/widget/ErrorToast.java 与 HomeActivity.java:2993 调用处）。
+# 注意：``faultCode`` 单独非 0 **不代表错误**——2101/2103/2105 是「在充电座/充电中」
+# 等状态（SweeperManager.isRobotInCharger / SwitchMapModeUtil），2108、518 等由
+# EventToast 显示为提示/告警而非错误。
+SWEEPER_FAULT_TYPE_ERROR: Final = 1
+
 # 清扫模式（ModeControlTypeEnum，setWorkMode 的 ctrltype 参数）。
 SWEEPER_MODE_AUTO_CLEAN: Final = 0  # 自动清扫
 SWEEPER_MODE_CHARGE: Final = 3  # 回充
@@ -59,13 +68,17 @@ SWEEPER_FAN_SPEED_TO_WIND_POWER: Final = {
 }
 
 
-def sweeper_activity(work_mode: str, fault_code: int, charge_status: int) -> str:
+def sweeper_activity(work_mode: str, fault_type: int, charge_status: int) -> str:
     """把扫地机数据映射到 HA vacuum 的 ``activity``（返回 ``VacuumActivity`` 成员名）。
 
     返回 ``cleaning`` / ``paused`` / ``returning`` / ``docked`` / ``idle`` /
     ``error`` 之一；纯函数，便于单元测试。
+
+    错误判据为 ``faultType == 1``（App 的 ``ErrorToast`` 仅据此显示错误横幅），
+    而非 ``faultCode``——``faultCode`` 中的 2101/2103/2105 等是在充电座/充电中等
+    状态码，不代表错误。
     """
-    if fault_code:
+    if fault_type == SWEEPER_FAULT_TYPE_ERROR:
         return "error"
     if work_mode in SWEEPER_MODE_CLEANING:
         return "cleaning"

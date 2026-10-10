@@ -3453,8 +3453,10 @@ components:
           type: integer
         faultCode:
           type: integer
+          description: 设备上报的故障/状态码；仅当 faultType==1 时才是故障（faultCode 决定错误文案）。2101/2103/2105 为「在充电座/充电中」等状态，2108 为重置定位提示，518 为低电量重试告警。
         faultType:
           type: integer
+          description: 故障类型：1=设备故障（App 的 ErrorToast 仅在此值显示错误横幅），其余值不代表错误。
         todayCleanSize:
           type: integer
         todayCleanTime:
@@ -3495,6 +3497,7 @@ components:
           type: string
         faultType:
           type: string
+          description: 清扫日志故障类型（LogFaultTypeEnum）：Normal/LowPower/NoWater/NoTwoInOne/NoDust/NoMop/MapNotMatch。
         startTime:
           type: integer
           format: int64
@@ -3721,8 +3724,10 @@ components:
           type: integer
         faultCode:
           type: integer
+          description: 设备上报的故障/状态码；仅当 faultType==1 时才是故障。2101/2103/2105 为「在充电座/充电中」等状态。
         faultType:
           type: integer
+          description: 故障类型：1=设备故障，其余值不代表错误。
         productId:
           type: integer
         mapId:

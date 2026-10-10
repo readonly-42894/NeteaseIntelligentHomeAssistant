@@ -12,9 +12,17 @@ import netease_intelligent.models as m
 
 
 def test_sweeper_activity_fault() -> None:
-    """faultCode 非 0 时映射为 error，无论其它字段。"""
-    assert c.sweeper_activity("1", 101, 0) == "error"
+    """faultType == 1 时映射为 error，无论其它字段。"""
+    assert c.sweeper_activity("1", 1, 0) == "error"
     assert c.sweeper_activity("", 1, 1) == "error"
+
+
+def test_sweeper_activity_fault_type_not_error() -> None:
+    """非 1 的 faultType 不算错误（如真机 faultType=3 配合 faultCode=2103 充电中）。"""
+    # 空闲/充电中 + faultType=3 → 不应是 error
+    assert c.sweeper_activity("0", 3, 1) == "docked"
+    assert c.sweeper_activity("0", 3, 0) == "idle"
+    assert c.sweeper_activity("1", 3, 0) == "cleaning"
 
 
 def test_sweeper_activity_cleaning() -> None:

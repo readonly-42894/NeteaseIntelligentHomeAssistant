@@ -109,12 +109,12 @@ class NeteaseIntelligentVacuum(StateVacuumEntity):
 
     @property
     def activity(self) -> VacuumActivity:
-        """当前清扫状态（映射 workMode/faultCode/chargeStatus）。"""
+        """当前清扫状态（映射 workMode/faultType/chargeStatus）。"""
         data = self._data
         if data is None:
             return VacuumActivity.ERROR
         return VacuumActivity(
-            sweeper_activity(data.work_mode, data.fault_code, data.charge_status)
+            sweeper_activity(data.work_mode, data.fault_type, data.charge_status)
         )
 
     @property

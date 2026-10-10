@@ -226,6 +226,8 @@ class SweeperDeviceData(_Model):
     battery: int = 0
     clean_size: int = 0
     clean_time: int = 0
+    # fault_type == 1 才是设备故障（错误）；fault_code 非 0 不代表错误（2101/2103/2105
+    # 为在充电座/充电中等状态），见 const.SWEEPER_FAULT_TYPE_ERROR 与 sweeper_activity。
     fault_code: int = 0
     fault_type: int = 0
     today_clean_size: int = 0

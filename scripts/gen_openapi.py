@@ -23,8 +23,9 @@ def prop(t, desc=None):
     if desc: m["description"] = desc
     return m
 
-def schema(props):
-    return {"type": "object", "properties": {k: prop(v) for k, v in props.items()}}
+def schema(props, descs=None):
+    descs = descs or {}
+    return {"type": "object", "properties": {k: prop(v, descs.get(k)) for k, v in props.items()}}
 
 # ================= SCHEMAS =================
 S = {}
@@ -139,10 +140,16 @@ S["SweeperDeviceData"] = schema({"areaCleanFlag": INT, "isOnline": BOOL, "isOTAU
     "cleanTime": INT, "faultCode": INT, "faultType": INT, "todayCleanSize": INT,
     "todayCleanTime": INT, "cleanSchemeId": I64, "mapId": I64, "mapType": INT,
     "repeatClean": INT, "mapUrl": STR, "protocolVersion": STR, "waterControl": INT,
-    "windPower": INT, "workMode": STR})
+    "windPower": INT, "workMode": STR},
+    descs={
+        "faultCode": "设备上报的故障/状态码；仅当 faultType==1 时才是故障（faultCode 决定错误文案）。"
+                     "2101/2103/2105 为「在充电座/充电中」等状态，2108 为重置定位提示，518 为低电量重试告警。",
+        "faultType": "故障类型：1=设备故障（App 的 ErrorToast 仅在此值显示错误横幅），其余值不代表错误。",
+    })
 S["SweeperFirmwareInfo"] = schema({"firmwareVersion": STR})
 S["SweeperLogData"] = schema({"cleanArea": INT, "cleanTime": INT, "cleanType": STR, "faultType": STR,
-    "startTime": I64, "id": STR, "mapName": STR, "mapUrl": STR})
+    "startTime": I64, "id": STR, "mapName": STR, "mapUrl": STR},
+    descs={"faultType": "清扫日志故障类型（LogFaultTypeEnum）：Normal/LowPower/NoWater/NoTwoInOne/NoDust/NoMop/MapNotMatch。"})
 S["SweeperMapEditResponse"] = schema({"rscode": INT})
 S["SweeperPendingMap"] = schema({"mapType": INT, "mapId": I64, "equipId": STR, "mapImgUrl": STR,
     "mapUrl": STR})
@@ -168,7 +175,11 @@ S["SweeperPushMap"] = schema({"equipId": STR, "productId": INT, "mapId": I64, "m
 S["SweeperPushInfo"] = schema({"areaCleanFlag": INT, "chargeStatus": INT, "cleanSchemeId": I64,
     "equipId": STR, "battery": INT, "cleanSize": INT, "cleanTime": INT, "faultCode": INT,
     "faultType": INT, "productId": INT, "mapId": I64, "repeatClean": INT, "waterControl": INT,
-    "windPower": INT, "workMode": STR})
+    "windPower": INT, "workMode": STR},
+    descs={
+        "faultCode": "设备上报的故障/状态码；仅当 faultType==1 时才是故障。2101/2103/2105 为「在充电座/充电中」等状态。",
+        "faultType": "故障类型：1=设备故障，其余值不代表错误。",
+    })
 S["SweeperOtaStatus"] = schema({"isOta": BOOL})
 
 # Firmware
