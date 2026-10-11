@@ -183,7 +183,13 @@ _CHARGER_SIZE_METERS: float = 0.28
 #: App drawable 资源目录（``res/drawable*`` 中地图相关图标/纹理，透明 PNG）。
 _ASSETS_DIR: str = os.path.join(os.path.dirname(__file__), "map_assets")
 
-#: 优先使用的 CJK 字体路径（跨平台常见位置），均不存在时回退 Pillow 默认字体。
+#: 随集成分发的内置字体：Noto Sans SC（SIL OFL 1.1，见 ``fonts/LICENSE.txt``）。
+#: 宿主机（尤其 HA 官方容器）通常不带 CJK 字体，仅靠系统字体房间名会渲染成豆腐块；
+#: 内置字体保证任何环境下 CJK 文字都能正确渲染。
+_FONT_DIR: str = os.path.join(os.path.dirname(__file__), "fonts")
+_BUNDLED_FONT: str = os.path.join(_FONT_DIR, "NotoSansSC-Regular.otf")
+
+#: 内置字体缺失时的系统 CJK 字体回退路径（跨平台常见位置），仍不可用则回退 Pillow 默认字体。
 _FONT_CANDIDATES: tuple[str, ...] = (
     "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
@@ -212,8 +218,8 @@ _FALLBACK_WINDOW_METERS: float = 3.0
 
 
 def _font_paths() -> list[str]:
-    """候选字体路径：固定路径 + 通配符搜索（去重、保序）。"""
-    paths: list[str] = []
+    """候选字体路径：内置字体优先，其次固定路径，最后通配符搜索（去重、保序）。"""
+    paths: list[str] = [_BUNDLED_FONT]
     for path in _FONT_CANDIDATES:
         if path not in paths:
             paths.append(path)
@@ -225,7 +231,7 @@ def _font_paths() -> list[str]:
 
 
 def _load_font(size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
-    """加载一个尽量支持中文的字体；失败时回退 Pillow 默认字体。"""
+    """加载一个尽量支持中文的字体：内置 Noto Sans SC 优先，失败时回退 Pillow 默认字体。"""
     for path in _font_paths():
         if not os.path.exists(path):
             continue

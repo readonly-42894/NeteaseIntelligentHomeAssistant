@@ -26,7 +26,7 @@
 | `docs/API工作原理.md` | API 工作机制总览（架构/网络栈/Base URL/接口组织/源码定位） |
 | `docs/api/` | API 专题文档（认证机制/统一响应结构/登录流程/调用示例/集成实现） |
 | `source/` | 原始安装包（Git LFS 跟踪） |
-| `scripts/` | 生成器 `gen_openapi.py`；辅助脚本 `extract_fields.sh`、在线冒烟 `live_smoke.py`；官方推送通道探针 `push_probe.py` |
+| `scripts/` | 生成器 `gen_openapi.py`；辅助脚本 `extract_fields.sh`、在线冒烟 `live_smoke.py`；官方推送通道探针 `push_probe.py`；地图字体获取 `fetch_map_font.py` |
 | `tests/` | 单元测试（`pytest`，见「测试」一节） |
 
 ## 集成开发状态
@@ -57,6 +57,7 @@
 | `map_parser.py` | 扫地机二进制地图包解析（复刻 App `MapDataParser`，纯标准库）；含推送轨迹复刻（`parse_trajectory` / `apply_trajectory`，对应 App `MapHistoryParser`） |
 | `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 App spirit 上色与坐标变换，直接贴 App drawable 图标/纹理；支持深色调色板；`history` 模式显示清扫结果与轨迹，叠加墙/区域/朝向标记） |
 | `map_assets/` | 取自 App `res/drawable*` 的地图图标/纹理（机器人/充电座/定点透明 PNG，虚拟墙/区域/背景平铺纹理） |
+| `fonts/` | 内置地图字体 Noto Sans SC（SIL OFL 1.1），保证房间名等 CJK 文字在无 CJK 系统字体的宿主（如 HA 容器）也能正确渲染 |
 | `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor/image 实体 |
 
 ## API 逆向

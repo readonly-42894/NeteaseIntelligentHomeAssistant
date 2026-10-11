@@ -7,9 +7,11 @@
 from __future__ import annotations
 
 import io
+import os
 
 import pytest
-from PIL import Image
+from fontTools.ttLib import TTFont
+from PIL import Image, ImageFont
 
 import netease_intelligent.map_parser as mp
 import netease_intelligent.map_render as mr
@@ -246,3 +248,33 @@ def test_dark_mode_area_outline_color() -> None:
         build_map(grid=grid, size_x=4, size_y=4, resolution=1.0, area=area)
     )
     assert mr._COLOR_DARK_AREA_TEXT in _colors(mr.render_map(package, dark=True))
+
+
+def test_bundled_font_is_preferred() -> None:
+    """内置 Noto Sans SC 随包分发，且被 ``_load_font`` 优先选中。"""
+    assert os.path.isfile(mr._BUNDLED_FONT)
+    assert mr._font_paths()[0] == mr._BUNDLED_FONT
+    font = mr._load_font(16)
+    assert isinstance(font, ImageFont.FreeTypeFont)
+    assert font.getname()[0] == "Noto Sans SC"
+
+
+def test_bundled_font_covers_cjk() -> None:
+    """内置字体覆盖中文与地图标签所需的常用符号（含 ``㎡``/``×``）。"""
+    cmap = TTFont(mr._BUNDLED_FONT).getBestCmap()
+    for char in "客厅主卧卫生间阳台㎡×0123456789m":
+        assert ord(char) in cmap
+
+
+def test_room_name_renders() -> None:
+    """含中文房间名的地图能正常渲染（文字使用内置字体，不崩溃）。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED_ROOM_LOW] * 16
+    raw = build_map(
+        grid=grid,
+        size_x=4,
+        size_y=4,
+        resolution=1.0,
+        rooms=[(10, "客厅", 2.0, 2.0)],
+    )
+    png = mr.render_map(mp.parse_map(raw))
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
