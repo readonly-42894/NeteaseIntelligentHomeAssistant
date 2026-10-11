@@ -251,9 +251,8 @@ def test_dark_mode_area_outline_color() -> None:
 
 
 def test_bundled_font_is_preferred() -> None:
-    """内置 Noto Sans SC 随包分发，且被 ``_load_font`` 优先选中。"""
+    """内置 Noto Sans SC 随包分发，且被 ``_load_font`` 选中。"""
     assert os.path.isfile(mr._BUNDLED_FONT)
-    assert mr._font_paths()[0] == mr._BUNDLED_FONT
     font = mr._load_font(16)
     assert isinstance(font, ImageFont.FreeTypeFont)
     assert font.getname()[0] == "Noto Sans SC"

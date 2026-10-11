@@ -26,7 +26,6 @@
 
 from __future__ import annotations
 
-import glob
 import io
 import math
 import os
@@ -184,65 +183,24 @@ _CHARGER_SIZE_METERS: float = 0.28
 _ASSETS_DIR: str = os.path.join(os.path.dirname(__file__), "map_assets")
 
 #: 随集成分发的内置字体：Noto Sans SC（SIL OFL 1.1，见 ``fonts/LICENSE.txt``）。
-#: 宿主机（尤其 HA 官方容器）通常不带 CJK 字体，仅靠系统字体房间名会渲染成豆腐块；
-#: 内置字体保证任何环境下 CJK 文字都能正确渲染。
+#: HA 官方容器基于 Alpine，不装任何字体包，也无字体发现机制；因此 CJK 文字必须依赖
+#: 集成自带的字体，不能指望宿主系统字体（否则房间名会渲染成豆腐块）。
 _FONT_DIR: str = os.path.join(os.path.dirname(__file__), "fonts")
 _BUNDLED_FONT: str = os.path.join(_FONT_DIR, "NotoSansSC-Regular.otf")
-
-#: 内置字体缺失时的系统 CJK 字体回退路径（跨平台常见位置），仍不可用则回退 Pillow 默认字体。
-_FONT_CANDIDATES: tuple[str, ...] = (
-    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-    "/usr/share/fonts/truetype/arphic/uming.ttc",
-    "/System/Library/Fonts/PingFang.ttc",
-    "C:/Windows/Fonts/msyh.ttc",
-    "C:/Windows/Fonts/simhei.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-)
-
-#: 兜底：在上述固定路径之外，按通配符搜索常见 CJK 字体（不同发行版布局不一）。
-_FONT_GLOBS: tuple[str, ...] = (
-    "/usr/share/fonts/noto-cjk/*CJK*Regular*.ttc",
-    "/usr/share/fonts/**/NotoSansCJKsc-Regular.*",
-    "/usr/share/fonts/**/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/**/wqy*.ttc",
-)
 
 #: 全背景时回退的居中窗口宽度（米），对应 App 的 MAP_DEFAULE_WIDTH。
 _FALLBACK_WINDOW_METERS: float = 3.0
 
 
-def _font_paths() -> list[str]:
-    """候选字体路径：内置字体优先，其次固定路径，最后通配符搜索（去重、保序）。"""
-    paths: list[str] = [_BUNDLED_FONT]
-    for path in _FONT_CANDIDATES:
-        if path not in paths:
-            paths.append(path)
-    for pattern in _FONT_GLOBS:
-        for path in sorted(glob.glob(pattern, recursive=True)):
-            if path not in paths:
-                paths.append(path)
-    return paths
-
-
 def _load_font(size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
-    """加载一个尽量支持中文的字体：内置 Noto Sans SC 优先，失败时回退 Pillow 默认字体。"""
-    for path in _font_paths():
-        if not os.path.exists(path):
-            continue
-        try:
-            return ImageFont.truetype(path, size)
-        except OSError:
-            continue
+    """加载支持中文的字体：内置 Noto Sans SC；缺失或损坏时回退 Pillow 默认字体。"""
     try:
-        return ImageFont.load_default(size)
-    except TypeError:  # 旧版 Pillow 的 load_default 不接受 size
-        return ImageFont.load_default()
+        return ImageFont.truetype(_BUNDLED_FONT, size)
+    except OSError:
+        try:
+            return ImageFont.load_default(size)
+        except TypeError:  # 旧版 Pillow 的 load_default 不接受 size
+            return ImageFont.load_default()
 
 
 def _room_palette_index(room_id: int) -> int:
