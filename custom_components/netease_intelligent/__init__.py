@@ -65,7 +65,7 @@ async def _async_setup_push(
     coordinator: NeteaseIntelligentCoordinator,
     sweeper_coordinators: dict[str, NeteaseIntelligentSweeperCoordinator],
 ) -> NeteaseIntelligentPushClient | None:
-    """建立官方推送通道（推送为主、轮询兜底）。
+    """建立官方推送通道（轮询为基础，推送为实时增补）。
 
     任一前提不满足（无扫地机、账号信息获取失败、缺少 pid）时返回 ``None``，
     集成退回纯轮询，不影响主流程。

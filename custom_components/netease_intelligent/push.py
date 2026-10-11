@@ -1,4 +1,4 @@
-"""官方 Socket.IO 推送通道客户端（推送为主数据源）。
+"""官方 Socket.IO 推送通道客户端（实时增强数据源）。
 
 官方 App 通过 ``com.yy.httpproxy`` 的 Socket.IO 长连接（Engine.IO v3，仅 WebSocket）
 接收设备事件。本模块用 aiohttp 直接复刻该通道：连接 → 注册 ``pushId``/``setTags``/
@@ -161,7 +161,7 @@ class NeteaseIntelligentPushClient:
             await ws.send_str(_ENGINEIO_PING)
 
     def _set_connected(self, connected: bool) -> None:
-        """同步推送在线状态给所有扫地机协调器（决定兜底轮询频率）。"""
+        """同步推送在线状态给所有扫地机协调器（决定轮询频率）。"""
         if connected == self._connected:
             return
         self._connected = connected

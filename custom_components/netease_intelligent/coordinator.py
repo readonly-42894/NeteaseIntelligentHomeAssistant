@@ -2,9 +2,10 @@
 
 - ``NeteaseIntelligentCoordinator`` 周期调用 ``GET /ai-app/family/info`` 拉取家庭列表
   （每项含房间、成员与设备），按家庭 ID 建索引后作为 ``data`` 暴露。
-- ``NeteaseIntelligentSweeperCoordinator`` 缓存单台扫地机的实时数据：**以官方推送通道
-  为主数据源**（推送帧经 :meth:`NeteaseIntelligentSweeperCoordinator.apply_sweeper_push`
-  注入），并以自适应轮询兜底——推送在线时降频至 ``SWEEPER_PUSH_FALLBACK_INTERVAL``，
+- ``NeteaseIntelligentSweeperCoordinator`` 缓存单台扫地机的实时数据：**以 ``getDeviceData``
+  轮询为基础、官方推送通道实时增补**（推送帧经
+  :meth:`NeteaseIntelligentSweeperCoordinator.apply_sweeper_push` 注入），
+  轮询提供推送不覆盖的字段与首次全量基线——推送在线时降频至 ``SWEEPER_PUSH_FALLBACK_INTERVAL``，
   离线时活动状态用短间隔、空闲用长间隔；控制指令后另有强制短轮询的观察窗口。
 """
 
@@ -81,7 +82,7 @@ class NeteaseIntelligentCoordinator(DataUpdateCoordinator[dict[int, Family]]):
 
 
 class NeteaseIntelligentSweeperCoordinator(DataUpdateCoordinator[SweeperDeviceData]):
-    """缓存单台扫地机的实时数据（推送为主、轮询兜底）。
+    """缓存单台扫地机的实时数据（轮询为基础、推送实时增补）。
 
     - 推送在线（:meth:`set_push_connected`）时用 ``SWEEPER_PUSH_FALLBACK_INTERVAL``
       低频轮询，仅防推送静默丢失；数据主体来自 :meth:`apply_sweeper_push`。
@@ -109,7 +110,7 @@ class NeteaseIntelligentSweeperCoordinator(DataUpdateCoordinator[SweeperDeviceDa
         self.equip_id = equip_id
         # 控制指令观察窗口的截止时间；窗口内强制短轮询。
         self._fast_poll_until: datetime | None = None
-        # 推送通道是否在线；在线时轮询降为兜底频率。
+        # 推送通道是否在线；在线时轮询降频（推送负责时效）。
         self._push_connected = False
 
     def _push_command_window(self) -> bool:
@@ -130,7 +131,7 @@ class NeteaseIntelligentSweeperCoordinator(DataUpdateCoordinator[SweeperDeviceDa
 
     @callback
     def set_push_connected(self, connected: bool) -> None:
-        """同步推送通道在线状态，并据此切换兜底轮询频率。
+        """同步推送通道在线状态，并据此切换轮询频率。
 
         推送上线且不在控制观察窗口内时，把轮询降为
         ``SWEEPER_PUSH_FALLBACK_INTERVAL`` 并立即重排下一轮；推送下线时恢复
@@ -156,7 +157,7 @@ class NeteaseIntelligentSweeperCoordinator(DataUpdateCoordinator[SweeperDeviceDa
     async def _async_update_data(self) -> SweeperDeviceData:
         """拉取单台扫地机的实时数据，并据状态调整下一轮轮询间隔。
 
-        间隔优先级：控制观察窗口 > 推送在线（兜底频率）> 活动状态 > 空闲。
+        间隔优先级：控制观察窗口 > 推送在线（降频）> 活动状态 > 空闲。
         """
         try:
             data = await self.client.get_sweeper_data(self.equip_id)

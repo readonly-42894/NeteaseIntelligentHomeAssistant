@@ -121,7 +121,7 @@ SWEEPER_COMMAND_ACTIVE_WINDOW: Final = timedelta(minutes=1)
 # 会自主变化的状态（清扫中/回充中）：自适应轮询据此判定是否改用短间隔。
 SWEEPER_ACTIVE_ACTIVITIES: Final = frozenset({"cleaning", "returning"})
 
-# 推送在线时扫地机的兜底轮询间隔：推送为主数据源，轮询仅防推送静默丢失。
+# 推送在线时扫地机的轮询间隔（降频）：推送负责时效，轮询仍保留以补齐推送不覆盖的字段并防静默丢失。
 SWEEPER_PUSH_FALLBACK_INTERVAL: Final = timedelta(minutes=10)
 
 
