@@ -95,19 +95,6 @@ def test_sweeper_battery_percent() -> None:
     assert c.sweeper_battery_percent(-10) == 0
 
 
-def test_sweeper_is_active() -> None:
-    """自适应轮询：仅清扫中/回充中视为活动（其余状态回落到长间隔）。"""
-    assert c.sweeper_is_active("1", 0, 0) is True  # 清扫中
-    assert c.sweeper_is_active("5", 0, 0) is True  # 回充中
-    assert c.sweeper_is_active("28", 0, 0) is True  # 断点未充电 → returning
-    assert c.sweeper_is_active("4", 0, 0) is False  # 暂停
-    assert c.sweeper_is_active("0", 0, 1) is False  # 空闲且充电中 → docked
-    assert c.sweeper_is_active("10", 0, 0) is False  # 充电完成
-    assert c.sweeper_is_active("1", 1, 0) is False  # 故障 → error
-
-
-def test_sweeper_poll_intervals() -> None:
-    """活动间隔短于空闲间隔；空闲间隔复用家庭数据间隔。"""
-    assert c.SWEEPER_UPDATE_INTERVAL_ACTIVE < c.SWEEPER_UPDATE_INTERVAL_IDLE
-    assert c.SWEEPER_UPDATE_INTERVAL_IDLE == c.UPDATE_INTERVAL
-    assert c.SWEEPER_COMMAND_ACTIVE_WINDOW > c.SWEEPER_UPDATE_INTERVAL_ACTIVE
+def test_sweeper_poll_interval_not_faster() -> None:
+    """轮询不提速：推送在线间隔更长，且任何情况下都不短于默认间隔。"""
+    assert c.SWEEPER_UPDATE_INTERVAL_PUSH_ONLINE >= c.UPDATE_INTERVAL

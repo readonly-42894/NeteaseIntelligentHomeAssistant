@@ -5,8 +5,8 @@
 独立暴露（HA 2025.8 起 vacuum 实体的 ``battery_level`` 已废弃）。
 
 控制指令下发后采用**乐观更新**：立即把实体状态改为预期值（设备往往需要数秒才回报
-新状态），同时触发一次立即刷新并让协调器进入短轮询观察窗口，待设备数据确认或超时后
-回退到真实状态（见 :data:`ASSUMED_STATE_TTL`）。
+新状态），同时触发一次立即刷新，待设备数据（通常由推送带来）确认或超时后回退到真实
+状态（见 :data:`ASSUMED_STATE_TTL`）。刷新不改动协调器的轮询频率。
 """
 
 from __future__ import annotations
@@ -212,8 +212,7 @@ class NeteaseIntelligentVacuum(StateVacuumEntity):
                 self._fan_speed_before_assumed = None
 
     async def _refresh(self) -> None:
-        """控制命令发出后：开启短轮询观察窗口并立即拉取最新数据。"""
-        self._coordinator.note_control_command()
+        """控制命令发出后立即拉取一次最新数据（不改动轮询频率）。"""
         await self._coordinator.async_request_refresh()
 
     async def async_start(self, **kwargs: object) -> None:

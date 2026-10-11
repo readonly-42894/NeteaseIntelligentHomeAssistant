@@ -108,21 +108,12 @@ def sweeper_battery_percent(battery: int) -> int:
 # 家庭数据轮询间隔（见 coordinator.py 的 NeteaseIntelligentCoordinator）。
 UPDATE_INTERVAL: Final = timedelta(minutes=5)
 
-# 扫地机实时数据（``getDeviceData``）轮询间隔，与家庭数据分开（见 coordinator.py
-# 的 NeteaseIntelligentSweeperCoordinator）：设备「活动」时用短间隔尽快反映清扫
-# 状态/电量/地图变化，空闲或充电完成时用长间隔以降低 API 请求量。
-SWEEPER_UPDATE_INTERVAL_ACTIVE: Final = timedelta(seconds=20)
-SWEEPER_UPDATE_INTERVAL_IDLE: Final = UPDATE_INTERVAL
-
-# 控制指令下发后的观察窗口：即便设备尚未回报新状态，也在此期间保持短轮询，
-# 使实体尽快收敛（配合 vacuum 实体的乐观更新，见 vacuum.py）。
-SWEEPER_COMMAND_ACTIVE_WINDOW: Final = timedelta(minutes=1)
-
-# 会自主变化的状态（清扫中/回充中）：自适应轮询据此判定是否改用短间隔。
-SWEEPER_ACTIVE_ACTIVITIES: Final = frozenset({"cleaning", "returning"})
-
-# 推送在线时扫地机的轮询间隔（降频）：推送负责时效，轮询仍保留以补齐推送不覆盖的字段并防静默丢失。
-SWEEPER_PUSH_FALLBACK_INTERVAL: Final = timedelta(minutes=10)
+# 扫地机实时数据（``getDeviceData``）轮询间隔（见 coordinator.py 的
+# NeteaseIntelligentSweeperCoordinator）。轮询是**基础数据源**：负责推送不覆盖的
+# 字段（todayCleanSize/todayCleanTime 等）与首次全量基线。推送在线时进一步降频到
+# ``SWEEPER_UPDATE_INTERVAL_PUSH_ONLINE``，推送不可用时用 ``UPDATE_INTERVAL``。
+# 注意：**任何情况下都不低于此频率**——状态时效由推送承担，给轮询提速会打爆设备/云。
+SWEEPER_UPDATE_INTERVAL_PUSH_ONLINE: Final = timedelta(minutes=10)
 
 
 # 官方推送通道（Socket.IO 长连接；协议见 push_protocol.py 与 docs/api/集成实现.md
@@ -148,13 +139,6 @@ def push_uid(pid: int) -> str:
     """推送通道的用户绑定标识 ``uid``（App 拼装：ENV_APPNAME_pid）。"""
     return f"{PUSH_ENV}_{PUSH_APP_NAME}_{pid}"
 
-
-def sweeper_is_active(work_mode: str, fault_type: int, charge_status: int) -> bool:
-    """设备是否处于会自主变化的状态（清扫中/回充中），用于自适应轮询间隔。"""
-    return (
-        sweeper_activity(work_mode, fault_type, charge_status)
-        in SWEEPER_ACTIVE_ACTIVITIES
-    )
 
 # 线上环境的 API Base URL，见 docs/API工作原理.md 第 3 节。
 BASE_URL: Final = "https://3c.163.com"
