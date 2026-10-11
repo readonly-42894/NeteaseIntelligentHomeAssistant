@@ -16,7 +16,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfArea, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfArea, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -43,6 +43,8 @@ SENSOR_DESCRIPTIONS: tuple[SweeperSensorDescription, ...] = (
     SweeperSensorDescription(
         key="battery",
         device_class=SensorDeviceClass.BATTERY,
+        # 电量属诊断类别（同 core 的 roborock/roomba/ecovacs 惯例）。
+        entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
         translation_key="battery",
@@ -51,6 +53,7 @@ SENSOR_DESCRIPTIONS: tuple[SweeperSensorDescription, ...] = (
         key="today_clean_size",
         scale=0.01,  # 接口返回面积 ×100，除以 100 得平方米
         device_class=SensorDeviceClass.AREA,
+        entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfArea.SQUARE_METERS,
         translation_key="today_clean_size",
@@ -58,6 +61,7 @@ SENSOR_DESCRIPTIONS: tuple[SweeperSensorDescription, ...] = (
     SweeperSensorDescription(
         key="today_clean_time",
         device_class=SensorDeviceClass.DURATION,
+        entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTime.MINUTES,
         translation_key="today_clean_time",
