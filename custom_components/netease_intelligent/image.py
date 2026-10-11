@@ -136,6 +136,14 @@ class NeteaseIntelligentMapImage(
         )
         uid = self._equip.unique_identifier
         revision = self.coordinator.map_revision
+        _LOGGER.debug(
+            "扫地机 %s 地图请求：map_url=%s revision=%s 轨迹长=%s dark=%s",
+            uid,
+            data.map_url,
+            revision,
+            len(data.map_history) if data.map_history else 0,
+            dark,
+        )
 
         if (
             self._package is None
