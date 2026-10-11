@@ -80,9 +80,6 @@
       "today_clean_size": { "name": "Today cleaned area" },
       "today_clean_time": { "name": "Today cleaning duration" }
     },
-    "binary_sensor": {
-      "battery_charging": { "name": "Charging" }
-    },
     "image": {
       "map": { "name": "Map" }
     }

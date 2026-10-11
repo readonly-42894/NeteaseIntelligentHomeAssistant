@@ -80,9 +80,6 @@
       "today_clean_size": { "name": "今日清扫面积" },
       "today_clean_time": { "name": "今日清扫时长" }
     },
-    "binary_sensor": {
-      "battery_charging": { "name": "充电中" }
-    },
     "image": {
       "map": { "name": "地图" }
     }

@@ -18,6 +18,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -44,16 +45,18 @@ async def async_setup_entry(
         coordinator = data.sweeper_coordinators.get(equip.id)
         if coordinator is None:
             continue
-        entities.append(NeteaseIntelligentChargingSensor(equip, coordinator))
+        entities.append(NeteaseIntelligentBatteryChargingSensor(equip, coordinator))
     async_add_entities(entities)
 
 
-class NeteaseIntelligentChargingSensor(BinarySensorEntity):
+class NeteaseIntelligentBatteryChargingSensor(BinarySensorEntity):
     """网易智造扫地机器人「充电中」二进制传感器。"""
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
-    _attr_translation_key = "battery_charging"
+    # 实体名由 device_class 提供（core 已内置本地化，不设 translation_key）；
+    # 标记为诊断实体（同 roborock/nuki 的 battery_charging 惯例）。
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(
         self,

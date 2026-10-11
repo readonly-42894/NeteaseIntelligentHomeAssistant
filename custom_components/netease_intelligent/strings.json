@@ -75,9 +75,6 @@
     }
   },
   "entity": {
-    "binary_sensor": {
-      "battery_charging": { "name": "充电中" }
-    },
     "image": {
       "map": { "name": "地图" }
     }
