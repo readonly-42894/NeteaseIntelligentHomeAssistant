@@ -35,7 +35,7 @@
 - [x] 最小可加载集成（Config Flow 手动录入 Cookie 凭据）
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
 - [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
-- [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor`
+- [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor` + 充电中 `binary_sensor`
 - [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG；复用 App drawable 图标/纹理，默认按清扫结果显示已清扫地面/房间与轨迹，叠加虚拟墙、清扫区域与带朝向的机器人/充电座标记；支持浅色/深色两种配色；清扫中经推送 subtype 3 轨迹实时增长）
 - [x] 扫地机器人：控制后即时反馈（`vacuum` 乐观更新 + 立即刷新）；轮询频率固定（推送在线 10min、离线 5min，不随状态提速）
 - [x] 官方推送通道：Socket.IO 长连接（`iot_class=cloud_push`）为扫地机实时数据提供实时增补（轮询提供完整字段与基线）；探针 `scripts/push_probe.py`
@@ -53,12 +53,13 @@
 | `push.py` / `push_protocol.py` | 官方 Socket.IO 推送通道（`cloud_push`）：帧解析、载荷→`SweeperDeviceData` 映射、`pushId` 生成；断线退避重连，不可用时轮询继续提供数据 |
 | `vacuum.py` | 扫地机器人 `vacuum` 实体（`StateVacuumEntity` + `VacuumActivity`：清扫/暂停/回充/吸力/寻找设备）；控制指令后**乐观更新**并触发快速刷新 |
 | `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
+| `binary_sensor.py` | 扫地机器人 `binary_sensor`：充电中（`device_class: battery_charging`，`chargeStatus == Charging`），供前端给电量实体显示充电图标/动效 |
 | `image.py` | 扫地机器人 `image` 实体：把 `mapUrl` 地图包渲染为 PNG 展示（配色由选项 `map_theme` 决定）；清扫中按推送 subtype 3 轨迹增量重放 |
 | `map_parser.py` | 扫地机二进制地图包解析（复刻 App `MapDataParser`，纯标准库）；含推送轨迹复刻（`parse_trajectory` / `apply_trajectory`，对应 App `MapHistoryParser`） |
 | `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 App spirit 上色与坐标变换，直接贴 App drawable 图标/纹理；支持深色调色板；`history` 模式显示清扫结果与轨迹，叠加墙/区域/朝向标记） |
 | `map_assets/` | 取自 App `res/drawable*` 的地图图标/纹理（机器人/充电座/定点透明 PNG，虚拟墙/区域/背景平铺纹理） |
 | `fonts/` | 内置地图字体 Noto Sans SC（SIL OFL 1.1），保证房间名等 CJK 文字在无 CJK 系统字体的宿主（如 HA 容器）也能正确渲染 |
-| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor/image 实体 |
+| `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor/binary_sensor/image 实体 |
 
 ## API 逆向
 

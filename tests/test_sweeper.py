@@ -132,6 +132,13 @@ def test_sweeper_battery_percent() -> None:
     assert c.sweeper_battery_percent(-10) == 0
 
 
+def test_sweeper_battery_charging() -> None:
+    """充电状态（ChargeStatusEnum）→ battery_charging 布尔。"""
+    assert c.sweeper_battery_charging(1) is True
+    assert c.sweeper_battery_charging(0) is False
+    assert c.sweeper_battery_charging(2) is False
+
+
 def test_sweeper_poll_interval_not_faster() -> None:
     """轮询不提速：推送在线间隔更长，且任何情况下都不短于默认间隔。"""
     assert c.SWEEPER_UPDATE_INTERVAL_PUSH_ONLINE >= c.UPDATE_INTERVAL

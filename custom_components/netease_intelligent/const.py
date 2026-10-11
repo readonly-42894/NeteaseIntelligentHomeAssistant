@@ -122,6 +122,16 @@ def sweeper_battery_percent(battery: int) -> int:
     """
     return max(0, min(100, battery - 100))
 
+
+def sweeper_battery_charging(charge_status: int) -> bool:
+    """电池是否正在充电（对应 HA ``battery_charging`` 二进制传感器）。
+
+    App ``HomeActivity`` 以 ``chargeStatus == ChargeStatusEnum.Charging`` 作为
+    ``BatteryView.setData(battery, ...)`` 的充电标志；前端据此给电量实体显示
+    充电图标/动效。
+    """
+    return charge_status == SWEEPER_CHARGE_CHARGING
+
 # 家庭数据轮询间隔（见 coordinator.py 的 NeteaseIntelligentCoordinator）。
 UPDATE_INTERVAL: Final = timedelta(minutes=5)
 
