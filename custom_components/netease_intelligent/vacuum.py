@@ -128,7 +128,12 @@ class NeteaseIntelligentVacuum(StateVacuumEntity):
     def _activity_from(data: SweeperDeviceData) -> VacuumActivity:
         """把一次扫地机数据映射为 vacuum activity。"""
         return VacuumActivity(
-            sweeper_activity(data.work_mode, data.fault_type, data.charge_status)
+            sweeper_activity(
+                data.work_mode,
+                data.fault_type,
+                data.charge_status,
+                data.fault_code,
+            )
         )
 
     @staticmethod

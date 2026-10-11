@@ -38,14 +38,27 @@ def test_sweeper_activity_paused() -> None:
 
 
 def test_sweeper_activity_returning() -> None:
-    """回充（5）→ returning。"""
-    assert c.sweeper_activity("5", 0, 0) == "returning"
+    """回充中码值（Recharge 与各 *Complete_Recharge）未到座 → returning。"""
+    for wm in ("5", "10", "12", "26", "32", "38", "47", "102"):
+        assert c.sweeper_activity(wm, 0, 0) == "returning"
 
 
-def test_sweeper_activity_docked() -> None:
-    """充电完成码值 → docked。"""
-    for wm in ("10", "12", "26", "32", "38", "47", "102"):
-        assert c.sweeper_activity(wm, 0, 0) == "docked"
+def test_sweeper_activity_returning_docked_when_on_charger() -> None:
+    """回充中码值充电中/在座 → docked（充电只有在座上才可能）。"""
+    for wm in ("5", "10", "12", "26", "32", "38", "47", "102"):
+        assert c.sweeper_activity(wm, 0, 1) == "docked"
+        assert c.sweeper_activity(wm, 0, 0, 2103) == "docked"
+
+
+def test_sweeper_activity_docked_by_fault_code() -> None:
+    """满电停在座上（chargeStatus=0）由 faultCode 2101/2103/2105 判定 docked。"""
+    for fault_code in (2101, 2103, 2105):
+        assert c.sweeper_activity("0", 0, 0, fault_code) == "docked"  # 空闲
+        assert c.sweeper_activity("11", 0, 0, fault_code) == "docked"  # 断点充电中
+        assert c.sweeper_activity("10", 0, 0, fault_code) == "docked"  # 停在座上
+    # 其它 faultCode 不参与「在座」判定。
+    assert c.sweeper_activity("0", 0, 0, 2100) == "idle"
+    assert c.sweeper_activity("11", 0, 0, 2100) == "returning"
 
 
 def test_sweeper_activity_idle_by_charge_status() -> None:
@@ -56,17 +69,41 @@ def test_sweeper_activity_idle_by_charge_status() -> None:
 
 
 def test_sweeper_activity_breakpoint() -> None:
-    """断点码值：充电中 → docked，未充电 → returning。"""
-    for wm in ("28", "33", "39", "48", "103"):
+    """断点码值（含 Auto_Breakpoint=11）：充电/在座 → docked，否则 returning。"""
+    for wm in ("11", "28", "33", "39", "48", "103"):
         assert c.sweeper_activity(wm, 0, 1) == "docked"
         assert c.sweeper_activity(wm, 0, 0) == "returning"
 
 
 def test_sweeper_activity_unknown_fallback() -> None:
-    """未知/空码值按充电状态兜底。"""
+    """未知/空码值按在座状态兜底。"""
     assert c.sweeper_activity("", 0, 0) == "idle"
     assert c.sweeper_activity("", 0, 1) == "docked"
+    assert c.sweeper_activity("", 0, 0, 2103) == "docked"
     assert c.sweeper_activity("-1", 0, 1) == "docked"  # Loading
+
+
+def test_sweeper_mode_sets_cover_all_known_modes() -> None:
+    """分组完整覆盖 WorkModeEnum 全部码值且互不重叠（漏码会落兜底、误判状态）。"""
+    known = {
+        "0", "1", "2", "4", "5", "7", "9", "10", "11", "12", "14",
+        "25", "26", "27", "28", "29", "30", "31", "32", "33", "35",
+        "36", "37", "38", "39", "40", "45", "46", "47", "48", "49",
+        "100", "101", "102", "103", "104",
+    }
+    groups = (
+        c.SWEEPER_MODE_CLEANING,
+        c.SWEEPER_MODE_PAUSED,
+        c.SWEEPER_MODE_RETURNING,
+        c.SWEEPER_MODE_BREAKPOINT,
+        c.SWEEPER_MODE_IDLE,
+    )
+    covered = set().union(*groups)
+    assert covered == known
+    assert "-1" not in covered  # Loading 走兜底
+    for index, group in enumerate(groups):
+        for other in groups[index + 1 :]:
+            assert not (group & other)
 
 
 def test_fan_speed_mapping_roundtrip() -> None:

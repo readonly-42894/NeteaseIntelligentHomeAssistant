@@ -21,19 +21,27 @@ SWEEPER_MODE_CLEANING: Final = frozenset(
 SWEEPER_MODE_PAUSED: Final = frozenset(
     {"4", "9", "27", "31", "37", "46", "101"}
 )  # 各模式暂停中
-SWEEPER_MODE_RETURNING: Final = frozenset({"5"})  # 回充中
+# 回充中：用户回充（Recharge）与清扫完成后自动回充（各 *Complete_Recharge）。
+# App 的 ``WorkModeConfig`` 对这些码值统一显示「回充中」（Re_Charging），并非已到座。
+SWEEPER_MODE_RETURNING: Final = frozenset(
+    {"5", "10", "12", "26", "32", "38", "47", "102"}
+)
+# 断点（低电回充续扫）：自动断点（Auto_Breakpoint）与各 *Breakpoint。
 SWEEPER_MODE_BREAKPOINT: Final = frozenset(
-    {"28", "33", "39", "48", "103"}
-)  # 断点（低电回充续扫）
-SWEEPER_MODE_DOCKED: Final = frozenset(
-    {"10", "12", "26", "32", "38", "47", "102"}
-)  # 各模式充电完成
+    {"11", "28", "33", "39", "48", "103"}
+)
+# 空闲：各 *Free。
 SWEEPER_MODE_IDLE: Final = frozenset(
     {"0", "14", "29", "35", "40", "49", "104"}
-)  # 各模式空闲
+)
 
 # 充电状态（ChargeStatusEnum）：0=未充电，1=充电中。
 SWEEPER_CHARGE_CHARGING: Final = 1
+
+# 「在充电座」的 faultCode 判据（App ``SweeperManager.isRobotInCharger()``）：
+# 2101/2103/2105 表示在充电座/充电中。满电停在座上时 ``chargeStatus`` 可能为 0，
+# 需据此判定 docked（与 ``chargeStatus`` 无关）。
+SWEEPER_FAULT_CODE_IN_CHARGER: Final = frozenset({2101, 2103, 2105})
 
 # 故障类型（``SweeperDeviceData.faultType``）：仅 ``1`` 表示设备故障。App 的
 # ``ErrorToast.setData(faultType, faultCode)`` 只在 ``faultType == 1`` 时显示错误
@@ -68,7 +76,12 @@ SWEEPER_FAN_SPEED_TO_WIND_POWER: Final = {
 }
 
 
-def sweeper_activity(work_mode: str, fault_type: int, charge_status: int) -> str:
+def sweeper_activity(
+    work_mode: str,
+    fault_type: int,
+    charge_status: int,
+    fault_code: int = 0,
+) -> str:
     """把扫地机数据映射到 HA vacuum 的 ``activity``（返回 ``VacuumActivity`` 成员名）。
 
     返回 ``cleaning`` / ``paused`` / ``returning`` / ``docked`` / ``idle`` /
@@ -76,7 +89,12 @@ def sweeper_activity(work_mode: str, fault_type: int, charge_status: int) -> str
 
     错误判据为 ``faultType == 1``（App 的 ``ErrorToast`` 仅据此显示错误横幅），
     而非 ``faultCode``——``faultCode`` 中的 2101/2103/2105 等是在充电座/充电中等
-    状态码，不代表错误。
+    状态码，不代表错误，反而用于判定「在充电座」。
+
+    「在充电座」（``docked``）判据：``chargeStatus == 1``（充电中）或 ``faultCode``
+    ∈ :data:`SWEEPER_FAULT_CODE_IN_CHARGER`（App 的 ``SweeperManager.isRobotInCharger()``，
+    覆盖满电停在座上、``chargeStatus`` 为 0 的情形）。回充中（Recharge /
+    *Complete_Recharge）与断点在未到座时视为 ``returning``。
     """
     if fault_type == SWEEPER_FAULT_TYPE_ERROR:
         return "error"
@@ -84,16 +102,15 @@ def sweeper_activity(work_mode: str, fault_type: int, charge_status: int) -> str
         return "cleaning"
     if work_mode in SWEEPER_MODE_PAUSED:
         return "paused"
-    if work_mode in SWEEPER_MODE_RETURNING:
-        return "returning"
-    if work_mode in SWEEPER_MODE_DOCKED:
-        return "docked"
-    if work_mode in SWEEPER_MODE_BREAKPOINT:
-        # 断点（低电回充续扫）：充电中视为 docked，否则视为回充中。
-        return "docked" if charge_status == SWEEPER_CHARGE_CHARGING else "returning"
-    # 空闲 / 未知 / 空模式（含 Loading "-1"）：按充电状态兜底，
-    # 充电中视为 docked（在充电座上），否则视为 idle。
-    return "docked" if charge_status == SWEEPER_CHARGE_CHARGING else "idle"
+    docked = (
+        charge_status == SWEEPER_CHARGE_CHARGING
+        or fault_code in SWEEPER_FAULT_CODE_IN_CHARGER
+    )
+    if work_mode in SWEEPER_MODE_RETURNING or work_mode in SWEEPER_MODE_BREAKPOINT:
+        # 回充中 / 断点（低电回充续扫）：已到座为 docked，否则为回充中。
+        return "docked" if docked else "returning"
+    # 空闲 / 未知 / 空模式（含 Loading "-1"）：在座为 docked，否则 idle。
+    return "docked" if docked else "idle"
 
 
 def sweeper_battery_percent(battery: int) -> int:
