@@ -125,3 +125,33 @@ def test_apply_trajectory_no_map_data() -> None:
     package = _package([mp.MAP_VALUE_NOT_ARRIVED] * 16, size_x=4, size_y=4)
     package.map_data = None
     assert mp.apply_trajectory(package, mp.parse_trajectory([1, 1, 1])) is package
+
+
+def test_trim_baked_history() -> None:
+    """同 URL 刷新：丢弃 pose_id <= 基准机器人 pose_id 的已烘焙点。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 400
+    package = _package(grid, robot=(100, 1.0, 1.0, 0.0))
+    points = [
+        mp.TrajectoryPoint(update=1, pose_id=90, pose_x=1.0, pose_y=1.0),
+        mp.TrajectoryPoint(update=1, pose_id=101, pose_x=1.1, pose_y=1.0),
+        mp.TrajectoryPoint(update=1, pose_id=100, pose_x=1.2, pose_y=1.0),
+        mp.TrajectoryPoint(update=1, pose_id=150, pose_x=1.3, pose_y=1.0),
+    ]
+    trimmed = mp.trim_baked_history(points, package)
+    assert [point.pose_id for point in trimmed] == [101, 150]
+
+
+def test_trim_baked_history_fallback_keeps_all() -> None:
+    """基准无机器人、或点缺 pose_id（三值记录）时保守保留全部。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 400
+    points = [
+        mp.TrajectoryPoint(update=1, pose_id=5, pose_x=1.0, pose_y=1.0),
+        mp.TrajectoryPoint(update=1, pose_id=7, pose_x=1.1, pose_y=1.0),
+    ]
+    assert mp.trim_baked_history(points, _package(grid)) == points
+    zero = [
+        mp.TrajectoryPoint(update=1, pose_id=0, pose_x=1.0, pose_y=1.0),
+        mp.TrajectoryPoint(update=1, pose_id=0, pose_x=1.1, pose_y=1.0),
+    ]
+    with_robot = _package(grid, robot=(100, 1.0, 1.0, 0.0))
+    assert mp.trim_baked_history(zero, with_robot) == zero

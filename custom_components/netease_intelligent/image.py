@@ -7,9 +7,12 @@
   :meth:`NeteaseIntelligentApiClient.download_map_package` 下载；
 - 解析（``map_parser``）与渲染（``map_render``）均为阻塞操作，放在 executor 中执行；
 - ``mapUrl`` 变化、或收到 subtype 2（地图）推送（``coordinator.map_revision`` 自增）
-  时重新下载渲染，否则复用上一次结果；
+  时重新下载渲染，否则复用上一次结果；``mapUrl`` 常为固定 URL、服务端在其上覆盖
+  写入新内容，故不能只按 URL 相等判定缓存；
 - 清扫中的实时轨迹由 subtype 3 推送（``SweeperDeviceData.map_history``）增量提供，
-  经 :func:`map_parser.apply_trajectory` 标进栅格后重渲染（与官方 App 一致）；
+  经 :func:`map_parser.apply_trajectory` 标进栅格后重渲染（与官方 App 一致）；累计
+  轨迹点，同 URL 刷新时经 :func:`map_parser.trim_baked_history` 裁掉服务端已烘焙的
+  点再重放，仅 ``mapUrl`` 变化才视为新地图并清空累计；
 - 配色由配置项 ``map_theme`` 决定（``light``/``dark``，默认 ``light``）。
 
 图片刷新时间戳（``image_last_updated``）仅在协调器更新时推进（不在地图读取
@@ -45,9 +48,11 @@ from .coordinator import (
 from .map_parser import (
     MapPackage,
     MapParseError,
+    TrajectoryPoint,
     apply_trajectory,
     parse_map,
     parse_trajectory,
+    trim_baked_history,
 )
 from .map_render import render_map
 from .models import Equip, SweeperDeviceData
@@ -95,7 +100,10 @@ class NeteaseIntelligentMapImage(
         self._client = client
         self._equip = equip
         self._entry = entry
+        self._base_package: MapPackage | None = None
         self._package: MapPackage | None = None
+        # 自最近一次地图基准（URL 变化）以来累计的轨迹点。
+        self._history_points: list[TrajectoryPoint] = []
         self._rendered_url: str | None = None
         self._rendered_revision: int | None = None
         self._applied_history: tuple[int, ...] | None = None
@@ -146,31 +154,43 @@ class NeteaseIntelligentMapImage(
         )
 
         if (
-            self._package is None
+            self._base_package is None
             or self._rendered_url != data.map_url
             or self._rendered_revision != revision
         ):
-            # 新地图（URL 变化，或收到 subtype 2 推送）：重新下载解析并整包重建，
-            # 丢弃已累计的轨迹标记（与官方 App 每次收到地图推送都重下载一致）。
+            # 新地图（URL 变化）或 subtype 2 推送刷新：重新下载解析整包。服务端会
+            # 以同一 mapUrl 覆盖写入新内容（包内 history 已烘焙最新轨迹与位姿），
+            # 故每次刷新都以下载到的包为基准。
             try:
                 raw = await self._client.download_map_package(data.map_url)
-                package = await self.hass.async_add_executor_job(parse_map, raw)
+                base = await self.hass.async_add_executor_job(parse_map, raw)
             except (ApiError, MapParseError, ValueError, OSError) as err:
                 _LOGGER.warning("扫地机 %s 地图获取/解析失败：%s", uid, err)
                 return None
-            self._package = package
+            if self._rendered_url != data.map_url:
+                # URL 变化 = 新地图：累计轨迹作废。
+                self._history_points = []
+            elif self._history_points:
+                # 同 URL 刷新：裁掉服务端已烘焙的点，保留更新的点重放。
+                self._history_points = trim_baked_history(
+                    self._history_points, base
+                )
+            self._base_package = base
+            self._package = await self.hass.async_add_executor_job(
+                apply_trajectory, base, self._history_points
+            )
             self._rendered_url = data.map_url
             self._rendered_revision = revision
-            self._applied_history = None
             self._rendered_image = None
 
         if data.map_history is not None and data.map_history != self._applied_history:
-            # subtype 3 推送的新轨迹：标进栅格并强制重渲染。
+            # subtype 3 推送的新轨迹：增量标进栅格并强制重渲染。
             try:
                 points = await self.hass.async_add_executor_job(
                     parse_trajectory, data.map_history
                 )
                 if points:
+                    self._history_points.extend(points)
                     self._package = await self.hass.async_add_executor_job(
                         apply_trajectory, self._package, points
                     )

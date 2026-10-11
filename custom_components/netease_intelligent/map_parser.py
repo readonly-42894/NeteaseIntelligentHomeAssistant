@@ -39,6 +39,7 @@ __all__ = [
     "apply_trajectory",
     "parse_map",
     "parse_trajectory",
+    "trim_baked_history",
     # 网格像素值（MapData.MapValue）
     "MAP_VALUE_BACKGROUND",
     "MAP_VALUE_OBSTACLE",
@@ -616,6 +617,24 @@ def _mark_line_brush(
         x = round(x0 + delta_x * step / steps)
         y = round(y0 + delta_y * step / steps)
         _mark_cell_brush(grid, map_data, x, y)
+
+
+def trim_baked_history(
+    points: Sequence[TrajectoryPoint], package: MapPackage
+) -> list[TrajectoryPoint]:
+    """丢弃 ``package.robot.pose_id`` 及之前（服务端已烘焙）的轨迹点。
+
+    服务端地图包以同一 ``mapUrl`` 覆盖写入新内容，其 ``history``/``robot`` 已烘焙到
+    最新 ``pose_id`` 为止；同 URL 刷新时只重放更新于它的点，避免已清扫着色被抹掉。
+    ``pose_id`` 不可用（三值记录或基准无机器人）时保守返回原列表副本。
+    """
+    kept = list(points)
+    robot = package.robot
+    if robot is None or robot.pose_id <= 0:
+        return kept
+    if any(point.pose_id <= 0 for point in kept):
+        return kept
+    return [point for point in kept if point.pose_id > robot.pose_id]
 
 
 def apply_trajectory(package: MapPackage, points: Sequence[TrajectoryPoint]) -> MapPackage:
