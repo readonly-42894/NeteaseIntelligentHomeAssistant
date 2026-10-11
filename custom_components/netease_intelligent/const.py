@@ -160,9 +160,9 @@ def sweeper_is_active(work_mode: str, fault_type: int, charge_status: int) -> bo
 BASE_URL: Final = "https://3c.163.com"
 
 # 配置项：认证走 Cookie，见 docs/API工作原理.md 第 4 节。
+# UA-INFO 不在此列：登录/手动录入流程都不写入，api.py 用 build_ua_info() 自动生成。
 CONF_TOKEN: Final = "token"  # Cookie: ONE_TOKEN
 CONF_TOKEN_ID: Final = "token_id"  # Cookie: ONE_TOKEN_ID
-CONF_UA_INFO: Final = "ua_info"  # Cookie: UA-INFO
 
 # 登录表单字段（登录流程，见 config_flow.py）
 CONF_LOGIN_TYPE: Final = "login_type"

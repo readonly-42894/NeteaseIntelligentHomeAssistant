@@ -13,7 +13,6 @@ from .api import ApiError, NeteaseIntelligentApiClient
 from .const import (
     CONF_TOKEN,
     CONF_TOKEN_ID,
-    CONF_UA_INFO,
     DOMAIN,
     MANUFACTURER,
     NAME,
@@ -104,7 +103,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_get_clientsession(hass),
         token=entry.data[CONF_TOKEN],
         token_id=entry.data[CONF_TOKEN_ID],
-        ua_info=entry.data.get(CONF_UA_INFO, ""),
     )
     coordinator = NeteaseIntelligentCoordinator(hass, client)
     # 首次刷新即校验凭据；失败会抛 ConfigEntryNotReady 由 HA 自动重试。
