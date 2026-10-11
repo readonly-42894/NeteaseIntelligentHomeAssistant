@@ -6,6 +6,9 @@
 
 - 反编译：``com.yy.httpproxy.socketio.SocketIOProxyClient``
   （Engine.IO v3、仅 WebSocket、客户端主动心跳）
+- 反编译：``com.netease.intelligent.kernel.util.EventUtil`` +
+  ``kernel.config.Action`` + ``sweeper.modules.home.HomeActivity``
+  （进入/离开设备页的 ``event/view`` 开始/关闭推送）
 - 实抓 HAR：``wss://3c.163.com/socket.io/?EIO=3&transport=websocket``
   （注册序列与推送帧结构；服务端推送事件名为 ``"p"``）
 
@@ -17,9 +20,15 @@
 3. 注册：发 ``42["pushId",{id,platform,topics,lastPacketIds}]``（服务端回显确认），
    再发 ``42["setTags",[...]]``、``42["unbindUid"]``、
    ``42["bindUid",{"uid":"r_intelligent_<pid>"}]`` 绑定登录用户。
-4. 心跳：客户端每 ``--ping`` 秒发 Engine.IO ping ``2``、服务端回 ``3``
+4. 开始/关闭推送：登录后调用 HTTP
+   ``GET /ai-app/app/event/view?pushId=&productId=&eventType=&equipId=``
+   （需 Cookie 鉴权，普通 REST、与其它 ``/ai-app/*`` 一致）。
+   官方在**进入设备页**发 ``eventType=1``（开始推送该设备事件）、
+   **离开设备页**发 ``eventType=2``（关闭推送）；本探针在开始监听前发 ``1``、
+   结束后发 ``2``。``productId`` 为扫地机品类 id（RV02=9、RV03=26）。
+5. 心跳：客户端每 ``--ping`` 秒发 Engine.IO ping ``2``、服务端回 ``3``
    （不发心跳时连接约 60s 后被服务端断开）。
-5. 推送：``42["p",{"android":{"payload":{"msgType":..,"data":{"opType":10,
+6. 推送：``42["p",{"android":{"payload":{"msgType":..,"data":{"opType":10,
    "json":{"eventType":1,"subtype":..,"type":..,"payload":{..}}}}}}]``，
    ``subtype`` 1=设备状态 / 2=地图 / 3=轨迹；``type`` 为 productId。
 
@@ -29,9 +38,14 @@
 ``pid`` 取自账号信息：``GET /ai-app/account/info?from=1`` 的 ``UserInfo.pid``
 （即 OpenAPI 的 ``opId=getAccountInfo``），或从 HAR 中已登录请求的业务参数读取。
 
-用法：:
+用法：
 
-    .venv/bin/python scripts/push_probe.py <pid> [--watch 120] [--ping 20]
+    # 仅监听（无 event/view）
+    .venv/bin/python scripts/push_probe.py <pid> --watch 120 --ping 20
+
+    # 完整复刻官方「开始/关闭推送」：从 HAR 提取 Cookie 鉴权
+    .venv/bin/python scripts/push_probe.py <pid> --har ~/Downloads/3c.163.com_*.har \
+        --equip-id <equipId> --product-id 26
 
 返回码：``0`` = 已连接并注册，``2`` = WebSocket 连接失败，``3`` = 握手/注册失败。
 """
@@ -49,12 +63,20 @@ import aiohttp
 
 # 生产推送域名（release）。alpha/beta 为 t2.3c.163.com，develop 为 t.3c.163.com。
 HOST = "wss://3c.163.com/socket.io/"
+HTTP_HOST = "https://3c.163.com"
+EVENT_VIEW_PATH = "/ai-app/app/event/view"
+USER_AGENT = "Intelligent/ntes3c/5.3.5/release/Release"
+
 ENV = "r"
 APP_NAME = "intelligent"
 APP_VERSION = "5.3.5"
 APP_SOURCE = "Release"
 PLATFORM = "android"
 TOPICS = ["noti", "event"]
+
+# event/view 的 eventType（EventUtil.EVENT_TYPE_*）。
+EVENT_TYPE_ENTRY_PAGE = 1  # 进入设备页：开始推送
+EVENT_TYPE_EXIT_PAGE = 2  # 离开设备页：关闭推送
 
 SUBTYPES = {
     1: "设备状态(Sweeper_Push_Info)",
@@ -71,6 +93,48 @@ def make_push_id() -> str:
 def make_tags() -> list[str]:
     """与官方 ``PushManager`` 一致的四元 tag 列表。"""
     return [APP_VERSION, f"{ENV}_{APP_NAME}", f"{ENV}_{APP_NAME}_android", APP_SOURCE]
+
+
+def load_cookie_from_har(path: str) -> str:
+    """从 HAR 中首个带 Cookie 的请求提取 ``name=value; ...`` 串。"""
+    with open(path, encoding="utf-8") as fp:
+        har = json.load(fp)
+    for entry in har["log"]["entries"]:
+        cookies = entry.get("request", {}).get("cookies") or []
+        if cookies:
+            return "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+    return ""
+
+
+async def send_event_view(
+    session: aiohttp.ClientSession,
+    ctx: ssl.SSLContext,
+    cookie: str,
+    push_id: str,
+    product_id: int,
+    equip_id: str,
+    event_type: int,
+) -> None:
+    """调用 ``event/view`` 开始（1）/关闭（2）该设备的推送。"""
+    url = f"{HTTP_HOST}{EVENT_VIEW_PATH}"
+    params = {
+        "pushId": push_id,
+        "productId": product_id,
+        "eventType": event_type,
+        "equipId": equip_id,
+    }
+    headers = {"Cookie": cookie, "User-Agent": USER_AGENT}
+    action = "开始推送" if event_type == EVENT_TYPE_ENTRY_PAGE else "关闭推送"
+    try:
+        async with session.get(url, params=params, headers=headers, ssl=ctx) as resp:
+            text = await resp.text()
+            print(
+                f"* event/view({action} eventType={event_type}) -> "
+                f"{resp.status} {text[:200]}",
+                flush=True,
+            )
+    except Exception as err:  # noqa: BLE001
+        print(f"!! event/view({action}) 失败: {err!r}", flush=True)
 
 
 def handle_push(frame: str) -> None:
@@ -104,16 +168,30 @@ def handle_push(frame: str) -> None:
     print("   payload:", json.dumps(equipment, ensure_ascii=False)[:1000], flush=True)
 
 
-async def run(pid: int, watch: int, ping: int) -> int:
+async def run(args: argparse.Namespace) -> int:
+    pid = args.pid
+    watch = args.watch
+    ping = args.ping
     push_id = make_push_id()
     uid = f"{ENV}_{APP_NAME}_{pid}"
     url = f"{HOST}?EIO=3&transport=websocket"
+
+    event_view = bool(args.equip_id) and not args.no_event_view
+    cookie = args.cookie or (load_cookie_from_har(args.har) if args.har else "")
+    if event_view and not cookie:
+        print("!! 需要 --har 或 --cookie 才能调用 event/view（已跳过）", flush=True)
+        event_view = False
 
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
     print(f"* pushId={push_id}\n* uid={uid}\n* {url}", flush=True)
+    if event_view:
+        print(
+            f"* event/view: equipId={args.equip_id} productId={args.product_id}",
+            flush=True,
+        )
 
     async with aiohttp.ClientSession() as session:
         try:
@@ -130,6 +208,7 @@ async def run(pid: int, watch: int, ping: int) -> int:
         connected = False
         loop = asyncio.get_running_loop()
         t0 = loop.time()
+        deadline = t0 + watch
 
         async def send(frame: str) -> None:
             print(f"[+{loop.time() - t0:7.2f}s] >> {frame[:200]}", flush=True)
@@ -145,8 +224,12 @@ async def run(pid: int, watch: int, ping: int) -> int:
         ping_task = asyncio.create_task(ping_loop())
         try:
             while True:
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    print(f"* 监听 {watch}s 结束", flush=True)
+                    break
                 try:
-                    msg = await asyncio.wait_for(ws.receive(), timeout=watch)
+                    msg = await asyncio.wait_for(ws.receive(), timeout=remaining)
                 except asyncio.TimeoutError:
                     print(f"* 监听 {watch}s 结束", flush=True)
                     break
@@ -180,7 +263,17 @@ async def run(pid: int, watch: int, ping: int) -> int:
                     await send('42["unbindUid"]')
                     await send("42" + json.dumps(["bindUid", {"uid": uid}]))
                     print(f"* 已注册并 bindUid，监听 {watch}s（被动）", flush=True)
-                elif frame.startswith('42["p"'):
+                    if event_view:
+                        await send_event_view(
+                            session,
+                            ctx,
+                            cookie,
+                            push_id,
+                            args.product_id,
+                            args.equip_id,
+                            EVENT_TYPE_ENTRY_PAGE,
+                        )
+                elif frame.startswith('42["p"') or frame.startswith('42["push"'):
                     print(f"[+{loop.time() - t0:7.2f}s] << {frame[:220]}", flush=True)
                     handle_push(frame)
                 elif frame.startswith("2"):
@@ -190,6 +283,17 @@ async def run(pid: int, watch: int, ping: int) -> int:
                     break
                 else:
                     print(f"[+{loop.time() - t0:7.2f}s] << {frame[:200]}", flush=True)
+
+            if event_view and not ws.closed:
+                await send_event_view(
+                    session,
+                    ctx,
+                    cookie,
+                    push_id,
+                    args.product_id,
+                    args.equip_id,
+                    EVENT_TYPE_EXIT_PAGE,
+                )
         finally:
             ping_task.cancel()
             await ws.close()
@@ -203,10 +307,28 @@ def main() -> int:
         description="网易智造长连接推送通道探针（被动监听）",
     )
     parser.add_argument("pid", type=int, help="账号 pid（见 getAccountInfo）")
-    parser.add_argument("--watch", type=int, default=120, help="监听秒数（默认 120）")
+    parser.add_argument("--watch", type=int, default=120, help="总监听秒数（默认 120）")
     parser.add_argument("--ping", type=int, default=20, help="心跳间隔秒数（默认 20）")
+    parser.add_argument(
+        "--equip-id",
+        default="",
+        help="设备 equipId；给出后调用 event/view 复刻官方开始/关闭推送",
+    )
+    parser.add_argument(
+        "--product-id",
+        type=int,
+        default=26,
+        help="event/view 的 productId（RV02=9、RV03=26，默认 26）",
+    )
+    parser.add_argument("--har", default="", help="从该 HAR 提取 Cookie（event/view 鉴权）")
+    parser.add_argument("--cookie", default="", help="直接指定 Cookie 串（event/view 鉴权）")
+    parser.add_argument(
+        "--no-event-view",
+        action="store_true",
+        help="即使给了 --equip-id 也不调用 event/view",
+    )
     args = parser.parse_args()
-    return asyncio.run(run(args.pid, args.watch, args.ping))
+    return asyncio.run(run(args))
 
 
 if __name__ == "__main__":
