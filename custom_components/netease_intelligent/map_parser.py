@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import struct
 import zlib
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass, field, replace
 
 __all__ = [
     "MapArea",
@@ -34,7 +35,10 @@ __all__ = [
     "MapRobot",
     "MapSpot",
     "MapStatus",
+    "TrajectoryPoint",
+    "apply_trajectory",
     "parse_map",
+    "parse_trajectory",
     # 网格像素值（MapData.MapValue）
     "MAP_VALUE_BACKGROUND",
     "MAP_VALUE_OBSTACLE",
@@ -46,6 +50,10 @@ __all__ = [
     "MAP_VALUE_ARRIVED_ROOM_HIGH",
     "ARRIVED_ROOM_OFFSET",
     "ROOM_ID_BASE",
+    # 推送轨迹（subtype 3）
+    "HISTORY_BRUSH_RADIUS",
+    "HISTORY_POSE_SCALE",
+    "HISTORY_UPDATE_MARK",
 ]
 
 
@@ -479,4 +487,190 @@ def parse_map(raw: bytes) -> MapPackage:
         robot=robot,
         rooms=rooms,
         raw=raw,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# 实时轨迹（复刻 MapHistoryParser，推送 subtype 3 的 ``position`` 数组）
+#
+# 清扫过程中地图「长出来」的部分由推送 subtype 3 增量提供：position 是若干条
+# 轨迹记录拼接成的 int 数组。官方消费端按每记录 6 个 int 读取
+# ``[mapHeadId, poseId, update, poseX*10000, poseY*10000, posePhi*10000]``；但仓库
+# 既有文档（docs/api/集成实现.md）与测试按每记录 3 个 int（``[poseX*10000,
+# poseY*10000, update]``）描述，二者矛盾，故这里做记录宽度自动检测。
+# --------------------------------------------------------------------------- #
+HISTORY_UPDATE_MARK: int = 1  # update==1 的轨迹点才绘制（appendHistory）
+HISTORY_BRUSH_RADIUS: int = 3  # 画笔半径（网格单位）：(2R+1)² 方块
+HISTORY_POSE_SCALE: float = 10000.0  # 轨迹坐标的定点缩放（米 → 整数）
+
+
+@dataclass
+class TrajectoryPoint:
+    """推送轨迹点（``position`` 的单条记录）。"""
+
+    update: int = 0
+    pose_x: float = 0.0
+    pose_y: float = 0.0
+    pose_phi: float = 0.0
+    map_head_id: int = 0
+    pose_id: int = 0
+
+
+def _trajectory_updates_valid(values: list[int], width: int) -> bool:
+    """按 ``width`` 逐记录读取时，每个记录的 ``update`` 位是否均为 0/1。"""
+    for index in range(2, len(values), width):
+        if values[index] & 0xFF not in (0, HISTORY_UPDATE_MARK):
+            return False
+    return True
+
+
+def _trajectory_record_width(values: list[int]) -> int:
+    """检测 ``position`` 的每记录 int 数（6 优先，回退 3，非法返回 0）。
+
+    官方消费端（``MapHistoryParser.translate``）按每记录 6 个 int 读取，故优先
+    按 6 判定；仅当长度不是 6 的整数倍（或在 6 读法下 update 位异常）时回退到
+    每记录 3 个 int。
+    """
+    if not values:
+        return 0
+    if len(values) % 6 == 0 and _trajectory_updates_valid(values, 6):
+        return 6
+    if len(values) % 3 == 0 and _trajectory_updates_valid(values, 3):
+        return 3
+    return 0
+
+
+def parse_trajectory(position: Sequence[int]) -> list[TrajectoryPoint]:
+    """把推送 subtype 3 的 ``position`` 数组解析成轨迹点列表。
+
+    宽度不合法（既非 6 也非 3 的整数倍，或 update 位异常）时返回空列表。
+    """
+    values = [int(value) for value in position]
+    width = _trajectory_record_width(values)
+    if width == 0:
+        return []
+    points: list[TrajectoryPoint] = []
+    for base in range(0, len(values) - width + 1, width):
+        update = values[base + 2] & 0xFF
+        if width == 6:
+            points.append(
+                TrajectoryPoint(
+                    update=update,
+                    pose_x=values[base + 3] / HISTORY_POSE_SCALE,
+                    pose_y=values[base + 4] / HISTORY_POSE_SCALE,
+                    pose_phi=values[base + 5] / HISTORY_POSE_SCALE,
+                    map_head_id=values[base],
+                    pose_id=values[base + 1],
+                )
+            )
+        else:
+            points.append(
+                TrajectoryPoint(
+                    update=update,
+                    pose_x=values[base] / HISTORY_POSE_SCALE,
+                    pose_y=values[base + 1] / HISTORY_POSE_SCALE,
+                )
+            )
+    return points
+
+
+def _physics_to_grid_int(map_data: MapData, x: float, y: float) -> tuple[int, int]:
+    """物理坐标 → 整数栅格坐标（``(int)`` 截断，同 ``MapUtil.physicsToGrid``）。"""
+    resolution = map_data.resolution or 1.0
+    return int((x - map_data.min_x) / resolution), int((y - map_data.min_y) / resolution)
+
+
+def _mark_cell(grid: bytearray, size_x: int, x: int, y: int) -> None:
+    """把单个栅格从「未到达」标为「已到达」（含房间态）。"""
+    index = y * size_x + x
+    value = grid[index]
+    if value == MAP_VALUE_NOT_ARRIVED:
+        grid[index] = MAP_VALUE_ARRIVED
+    elif MAP_VALUE_NOT_ARRIVED_ROOM_LOW <= value <= MAP_VALUE_NOT_ARRIVED_ROOM_HIGH:
+        grid[index] = MAP_VALUE_ARRIVED_ROOM_LOW + (value - MAP_VALUE_NOT_ARRIVED_ROOM_LOW)
+
+
+def _mark_cell_brush(grid: bytearray, map_data: MapData, center_x: int, center_y: int) -> None:
+    """以 ``(center_x, center_y)`` 为中心盖 (2R+1)² 画笔（越界跳过）。"""
+    radius = HISTORY_BRUSH_RADIUS
+    for x in range(center_x - radius, center_x + radius + 1):
+        if x < 0 or x >= map_data.size_x:
+            continue
+        for y in range(center_y - radius, center_y + radius + 1):
+            if y < 0 or y >= map_data.size_y:
+                continue
+            _mark_cell(grid, map_data.size_x, x, y)
+
+
+def _mark_line_brush(
+    grid: bytearray, map_data: MapData, x0: int, y0: int, x1: int, y1: int
+) -> None:
+    """沿 ``(x0,y0) → (x1,y1)`` 直线逐格盖画笔（DDA 填充）。"""
+    delta_x = x1 - x0
+    delta_y = y1 - y0
+    steps = max(abs(delta_x), abs(delta_y))
+    if steps == 0:
+        _mark_cell_brush(grid, map_data, x1, y1)
+        return
+    for step in range(steps + 1):
+        x = round(x0 + delta_x * step / steps)
+        y = round(y0 + delta_y * step / steps)
+        _mark_cell_brush(grid, map_data, x, y)
+
+
+def apply_trajectory(package: MapPackage, points: Sequence[TrajectoryPoint]) -> MapPackage:
+    """把轨迹点标注进地图栅格并推进机器人位姿（复刻 ``MapHistoryParser``）。
+
+    仅 ``update == HISTORY_UPDATE_MARK`` 的点会被绘制；相邻点之间按网格空间
+    直线填充（App 用三分支插值实现同一语义，这里用 DDA 以求稳健）。返回新的
+    ``MapPackage``（栅格与机器人位姿更新，其余分区保持原样）。
+    """
+    map_data = package.map_data
+    if map_data is None or not points:
+        return package
+    if map_data.size_x <= 0 or map_data.size_y <= 0:
+        return package
+    if len(map_data.grid) < map_data.size_x * map_data.size_y:
+        return package
+
+    grid = bytearray(map_data.grid)
+
+    # App 会把上一帧的机器人位姿作为第 0 个历史点前插，再逐点连线。
+    sequence: list[TrajectoryPoint] = []
+    if package.robot is not None:
+        sequence.append(
+            TrajectoryPoint(
+                update=package.robot.update,
+                pose_x=package.robot.pose_x,
+                pose_y=package.robot.pose_y,
+                pose_phi=package.robot.pose_phi,
+                map_head_id=package.robot.map_head_id,
+                pose_id=package.robot.pose_id,
+            )
+        )
+    sequence.extend(points)
+
+    previous: tuple[int, int] | None = None
+    for item in sequence:
+        cell = _physics_to_grid_int(map_data, item.pose_x, item.pose_y)
+        if item.update == HISTORY_UPDATE_MARK:
+            if previous is None:
+                _mark_cell_brush(grid, map_data, cell[0], cell[1])
+            else:
+                _mark_line_brush(grid, map_data, previous[0], previous[1], cell[0], cell[1])
+        previous = cell
+
+    last = points[-1]
+    robot = MapRobot(
+        map_head_id=last.map_head_id,
+        pose_id=last.pose_id,
+        update=last.update,
+        pose_x=last.pose_x,
+        pose_y=last.pose_y,
+        pose_phi=last.pose_phi,
+    )
+    return replace(
+        package,
+        map_data=replace(map_data, grid=bytes(grid)),
+        robot=robot,
     )

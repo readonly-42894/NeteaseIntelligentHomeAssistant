@@ -230,5 +230,22 @@ class NeteaseIntelligentPushClient:
         equip_id, subtype, payload = decoded
         coordinator = self._sweeper_coordinators.get(equip_id)
         if coordinator is None:
+            _LOGGER.debug("推送 subtype=%s 设备 %s 无对应协调器，忽略", subtype, equip_id)
             return
-        coordinator.apply_sweeper_push(sweeper_patch_from_push(subtype, payload))
+        patch = sweeper_patch_from_push(subtype, payload)
+        _LOGGER.debug(
+            "推送 subtype=%s 设备 %s 补丁字段=%s",
+            subtype,
+            equip_id,
+            sorted(patch),
+        )
+        if subtype == 3:
+            position = payload.get("position")
+            sample = list(position[:12]) if isinstance(position, (list, tuple)) else position
+            _LOGGER.debug(
+                "推送轨迹 设备 %s position 长度=%s 前几个=%s",
+                equip_id,
+                len(position) if isinstance(position, (list, tuple)) else None,
+                sample,
+            )
+        coordinator.apply_sweeper_push(patch)

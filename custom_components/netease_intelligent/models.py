@@ -260,3 +260,6 @@ class SweeperDeviceData(_Model):
     water_control: int = 0
     wind_power: int = 0
     work_mode: str = ""
+    # 实时轨迹（推送 subtype 3 的 ``position`` 原始数组）。仅由推送注入，轮询
+    # 的 getDeviceData 不含该字段；用于在 image 实体上增量重放清扫轨迹。
+    map_history: tuple[int, ...] | None = None

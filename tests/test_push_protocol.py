@@ -90,9 +90,14 @@ def test_map_patch() -> None:
     assert patch == {"map_id": 3, "map_url": "https://u", "map_type": 1}
 
 
-def test_history_patch_empty() -> None:
-    """subtype 3（轨迹）没有设备数据字段 → 空补丁。"""
-    assert p.sweeper_patch_from_push(3, {"position": [1, 2, 3]}) == {}
+def test_history_patch_position() -> None:
+    """subtype 3（轨迹）：position → map_history 元组；空/非法则空补丁。"""
+    assert p.sweeper_patch_from_push(3, {"position": [1, 2, 3]}) == {
+        "map_history": (1, 2, 3)
+    }
+    assert p.sweeper_patch_from_push(3, {"position": []}) == {}
+    assert p.sweeper_patch_from_push(3, {}) == {}
+    assert p.sweeper_patch_from_push(3, {"position": ["x"]}) == {}
 
 
 def test_merge_preserves_unpatched_fields() -> None:

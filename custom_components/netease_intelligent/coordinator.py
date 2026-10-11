@@ -103,6 +103,9 @@ class NeteaseIntelligentSweeperCoordinator(DataUpdateCoordinator[SweeperDeviceDa
         self.equip_id = equip_id
         # 推送通道是否在线；在线时轮询降频（推送负责时效）。
         self._push_connected = False
+        # 每次收到 subtype 2（地图）推送时自增；image 实体据此重新下载地图包，
+        # 即使 ``map_url`` 未变（NOS 可能对同一 URL 覆盖写新内容）。
+        self.map_revision = 0
 
     @callback
     def set_push_connected(self, connected: bool) -> None:
@@ -128,6 +131,9 @@ class NeteaseIntelligentSweeperCoordinator(DataUpdateCoordinator[SweeperDeviceDa
         if self.data is None:
             # 尚无基准数据：等下一轮轮询或首个推送后再合并，避免丢字段。
             return
+        if "map_url" in patch:
+            # 收到地图推送：即使 map_url 未变也标记为新版本，触发重新下载。
+            self.map_revision += 1
         self.async_set_updated_data(merge_sweeper_patch(self.data, patch))
 
     async def _async_update_data(self) -> SweeperDeviceData:

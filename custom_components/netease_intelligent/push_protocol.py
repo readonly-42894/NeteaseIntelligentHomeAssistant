@@ -31,6 +31,7 @@ PUSH_ID_LENGTH: int = 26
 SUBTYPE_STATUS: int = 1
 SUBTYPE_MAP: int = 2
 SUBTYPE_HISTORY: int = 3
+SUBTYPE_PENDING_MAP: int = 4
 
 # subtype 1（设备状态）→ ``SweeperDeviceData`` 字段名（camelCase → snake_case）。
 # 注意：这是 http ``getDeviceData`` 的**子集**——推送不含 ``todayCleanSize`` /
@@ -70,8 +71,8 @@ def decode_push_frame(text: str) -> tuple[str, int, dict[str, Any]] | None:
     """解析一条 ``42["p", {...}]`` 推送帧。
 
     返回 ``(equip_id, subtype, payload)``；非扫地机推送或畸形帧返回 ``None``。
-    ``subtype`` 取自 ``json.subtype``（1=设备状态、2=地图、3=轨迹），``payload``
-    为 ``json.payload``（内含 ``equipId``）。
+    ``subtype`` 取自 ``json.subtype``（1=设备状态、2=地图、3=轨迹、4=待确认地图），
+    ``payload`` 为 ``json.payload``（内含 ``equipId``）。
     """
     if not text.startswith("42"):
         return None
@@ -112,12 +113,21 @@ def sweeper_patch_from_push(subtype: int, payload: dict[str, Any]) -> dict[str, 
 
     设备状态（subtype 1）里 ``workMode`` 为整数，而模型字段为字符串，这里统一转
     字符串；其余值原样传递。地图（subtype 2）补 ``map_id``/``map_url``/``map_type``。
-    轨迹（subtype 3）在设备数据里没有对应字段，返回空补丁。
+    轨迹（subtype 3）补 ``map_history``（``position`` 原始数组的元组），供 image
+    实体增量重放清扫轨迹；``position`` 为空则不产生补丁。
     """
     if subtype == SUBTYPE_STATUS:
         mapping = _STATUS_FIELDS
     elif subtype == SUBTYPE_MAP:
         mapping = _MAP_FIELDS
+    elif subtype == SUBTYPE_HISTORY:
+        position = payload.get("position")
+        if not isinstance(position, (list, tuple)) or not position:
+            return {}
+        try:
+            return {"map_history": tuple(int(value) for value in position)}
+        except (TypeError, ValueError):
+            return {}
     else:
         return {}
 
