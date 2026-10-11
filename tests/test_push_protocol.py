@@ -90,6 +90,24 @@ def test_map_patch() -> None:
     assert patch == {"map_id": 3, "map_url": "https://u", "map_type": 1}
 
 
+def test_map_patch_ignores_non_normal_mask() -> None:
+    """subtype 2：Zone/Spot/Memory 或空 mapUrl 的帧被忽略（复刻 flowMapPush）。"""
+    assert p.sweeper_patch_from_push(
+        2, {"mapUrl": "u", "mapType": p.MAP_MASK_ZONE}
+    ) == {}
+    assert p.sweeper_patch_from_push(
+        2, {"mapUrl": "u", "mapType": p.MAP_MASK_SPOT}
+    ) == {}
+    assert p.sweeper_patch_from_push(
+        2, {"mapUrl": "u", "mapType": p.MAP_MASK_MEMORY}
+    ) == {}
+    assert p.sweeper_patch_from_push(2, {"mapUrl": "", "mapType": p.MAP_MASK_NORMAL}) == {}
+    # Normal / History 帧照常透传。
+    assert p.sweeper_patch_from_push(
+        2, {"mapUrl": "u", "mapType": p.MAP_MASK_HISTORY}
+    ) == {"map_url": "u", "map_type": p.MAP_MASK_HISTORY}
+
+
 def test_history_patch_position() -> None:
     """subtype 3（轨迹）：position → map_history 元组；空/非法则空补丁。"""
     assert p.sweeper_patch_from_push(3, {"position": [1, 2, 3]}) == {

@@ -239,6 +239,14 @@ class NeteaseIntelligentPushClient:
             equip_id,
             sorted(patch),
         )
+        if subtype == 2:
+            _LOGGER.debug(
+                "推送地图 设备 %s map_id=%s map_type=%s map_url=%s",
+                equip_id,
+                payload.get("mapId"),
+                payload.get("mapType"),
+                payload.get("mapUrl"),
+            )
         if subtype == 3:
             position = payload.get("position")
             sample = list(position[:12]) if isinstance(position, (list, tuple)) else position

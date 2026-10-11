@@ -33,6 +33,17 @@ SUBTYPE_MAP: int = 2
 SUBTYPE_HISTORY: int = 3
 SUBTYPE_PENDING_MAP: int = 4
 
+# 地图掩码（``MapMask``）。官方 ``flowMapPush`` 只让 Normal/History 帧更新实时
+# 地图，过滤掉 Zone/Spot/Memory 帧（后者属于定点/区域/记忆地图流程）。
+MAP_MASK_NORMAL: int = 1
+MAP_MASK_ZONE: int = 2
+MAP_MASK_SPOT: int = 3
+MAP_MASK_HISTORY: int = 4
+MAP_MASK_MEMORY: int = 5
+_IGNORED_MAP_MASKS: frozenset[int] = frozenset(
+    {MAP_MASK_ZONE, MAP_MASK_SPOT, MAP_MASK_MEMORY}
+)
+
 # subtype 1（设备状态）→ ``SweeperDeviceData`` 字段名（camelCase → snake_case）。
 # 注意：这是 http ``getDeviceData`` 的**子集**——推送不含 ``todayCleanSize`` /
 # ``todayCleanTime`` / ``isOnline`` / ``isOtaUpdating`` / ``isRoomCleaningStatus``
@@ -112,13 +123,16 @@ def sweeper_patch_from_push(subtype: int, payload: dict[str, Any]) -> dict[str, 
     """把一条推送载荷映射为 ``SweeperDeviceData`` 字段补丁。
 
     设备状态（subtype 1）里 ``workMode`` 为整数，而模型字段为字符串，这里统一转
-    字符串；其余值原样传递。地图（subtype 2）补 ``map_id``/``map_url``/``map_type``。
-    轨迹（subtype 3）补 ``map_history``（``position`` 原始数组的元组），供 image
-    实体增量重放清扫轨迹；``position`` 为空则不产生补丁。
+    字符串；其余值原样传递。地图（subtype 2）补 ``map_id``/``map_url``/``map_type``，
+    但 mapType ∈ {Zone, Spot, Memory} 或 mapUrl 为空的帧被忽略（复刻官方
+    ``flowMapPush``）。轨迹（subtype 3）补 ``map_history``（``position`` 原始数组的
+    元组），供 image 实体增量重放清扫轨迹；``position`` 为空则不产生补丁。
     """
     if subtype == SUBTYPE_STATUS:
         mapping = _STATUS_FIELDS
     elif subtype == SUBTYPE_MAP:
+        if not payload.get("mapUrl") or payload.get("mapType") in _IGNORED_MAP_MASKS:
+            return {}
         mapping = _MAP_FIELDS
     elif subtype == SUBTYPE_HISTORY:
         position = payload.get("position")
