@@ -33,6 +33,9 @@ SUBTYPE_MAP: int = 2
 SUBTYPE_HISTORY: int = 3
 
 # subtype 1（设备状态）→ ``SweeperDeviceData`` 字段名（camelCase → snake_case）。
+# 注意：这是 http ``getDeviceData`` 的**子集**——推送不含 ``todayCleanSize`` /
+# ``todayCleanTime`` / ``isOnline`` / ``isOtaUpdating`` / ``isRoomCleaningStatus``
+# 等字段，故这些字段只能靠轮询（见 docs/api/集成实现.md「为什么必须保留轮询兜底」）。
 _STATUS_FIELDS: dict[str, str] = {
     "areaCleanFlag": "area_clean_flag",
     "battery": "battery",
