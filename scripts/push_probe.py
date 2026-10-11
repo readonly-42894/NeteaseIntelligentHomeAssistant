@@ -44,7 +44,7 @@
     .venv/bin/python scripts/push_probe.py <pid> --watch 120 --ping 20
 
     # 完整复刻官方「开始/关闭推送」：从 HAR 提取 Cookie 鉴权
-    .venv/bin/python scripts/push_probe.py <pid> --har ~/Downloads/3c.163.com_*.har \
+    .venv/bin/python scripts/push_probe.py <pid> --har <har 文件路径> \
         --equip-id <equipId> --product-id 26
 
 返回码：``0`` = 已连接并注册，``2`` = WebSocket 连接失败，``3`` = 握手/注册失败。

@@ -4,7 +4,7 @@
 
     .venv/bin/python scripts/live_smoke.py [har 文件路径]
 
-默认读取 ``~/Downloads`` 下最新的 ``*.har``。脚本从 HAR 中提取
+未传入路径时，默认取**当前工作目录**下最新的 ``*.har``。脚本从 HAR 中提取
 ``ONE_TOKEN`` / ``ONE_TOKEN_ID`` / ``UA-INFO`` 与 ``equipId``，
 用仓库的 ``api.NeteaseIntelligentApiClient`` 打线上 ``3c.163.com``，
 对比「抓包原始 UA-INFO」与「集成默认生成 UA-INFO」两种请求结果。
@@ -53,8 +53,8 @@ api = _load("api")
 def _find_har() -> Path:
     if len(sys.argv) > 1:
         return Path(sys.argv[1]).expanduser()
-    dls = Path.home() / "Downloads"
-    hars = sorted(dls.glob("*.har"), key=lambda p: p.stat().st_mtime)
+    cwd = Path.cwd()
+    hars = sorted(cwd.glob("*.har"), key=lambda p: p.stat().st_mtime)
     if not hars:
         raise SystemExit("未找到 HAR 文件，请显式传入路径")
     return hars[-1]
