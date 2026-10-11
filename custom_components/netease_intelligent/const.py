@@ -105,8 +105,29 @@ def sweeper_battery_percent(battery: int) -> int:
     """
     return max(0, min(100, battery - 100))
 
-# 家庭数据轮询间隔（见 coordinator.py）。
+# 家庭数据轮询间隔（见 coordinator.py 的 NeteaseIntelligentCoordinator）。
 UPDATE_INTERVAL: Final = timedelta(minutes=5)
+
+# 扫地机实时数据（``getDeviceData``）轮询间隔，与家庭数据分开（见 coordinator.py
+# 的 NeteaseIntelligentSweeperCoordinator）：设备「活动」时用短间隔尽快反映清扫
+# 状态/电量/地图变化，空闲或充电完成时用长间隔以降低 API 请求量。
+SWEEPER_UPDATE_INTERVAL_ACTIVE: Final = timedelta(seconds=20)
+SWEEPER_UPDATE_INTERVAL_IDLE: Final = UPDATE_INTERVAL
+
+# 控制指令下发后的观察窗口：即便设备尚未回报新状态，也在此期间保持短轮询，
+# 使实体尽快收敛（配合 vacuum 实体的乐观更新，见 vacuum.py）。
+SWEEPER_COMMAND_ACTIVE_WINDOW: Final = timedelta(minutes=1)
+
+# 会自主变化的状态（清扫中/回充中）：自适应轮询据此判定是否改用短间隔。
+SWEEPER_ACTIVE_ACTIVITIES: Final = frozenset({"cleaning", "returning"})
+
+
+def sweeper_is_active(work_mode: str, fault_type: int, charge_status: int) -> bool:
+    """设备是否处于会自主变化的状态（清扫中/回充中），用于自适应轮询间隔。"""
+    return (
+        sweeper_activity(work_mode, fault_type, charge_status)
+        in SWEEPER_ACTIVE_ACTIVITIES
+    )
 
 # 线上环境的 API Base URL，见 docs/API工作原理.md 第 3 节。
 BASE_URL: Final = "https://3c.163.com"
