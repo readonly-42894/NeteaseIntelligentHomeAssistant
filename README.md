@@ -26,7 +26,7 @@
 | `docs/API工作原理.md` | API 工作机制总览（架构/网络栈/Base URL/接口组织/源码定位） |
 | `docs/api/` | API 专题文档（认证机制/统一响应结构/登录流程/调用示例/集成实现） |
 | `source/` | 原始安装包（Git LFS 跟踪） |
-| `scripts/` | 生成器 `gen_openapi.py` 与辅助脚本 `extract_fields.sh` |
+| `scripts/` | 生成器 `gen_openapi.py`；辅助脚本 `extract_fields.sh`、在线冒烟 `live_smoke.py`；官方推送通道探针 `push_probe.py` |
 | `tests/` | 单元测试（`pytest`，见「测试」一节） |
 
 ## 集成开发状态
