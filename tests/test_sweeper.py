@@ -142,3 +142,24 @@ def test_sweeper_battery_charging() -> None:
 def test_sweeper_poll_interval_not_faster() -> None:
     """轮询不提速：推送在线间隔更长，且任何情况下都不短于默认间隔。"""
     assert c.SWEEPER_UPDATE_INTERVAL_PUSH_ONLINE >= c.UPDATE_INTERVAL
+
+
+def test_map_rotation_degrees_normalizes() -> None:
+    """地图朝向规整为 0/90/180/270（字符串/数字兼容，按最近 90° 吸附）。"""
+    assert c.map_rotation_degrees("0") == 0
+    assert c.map_rotation_degrees("90") == 90
+    assert c.map_rotation_degrees("180") == 180
+    assert c.map_rotation_degrees("270") == 270
+    assert c.map_rotation_degrees(90) == 90
+    assert c.map_rotation_degrees(360) == 0
+    assert c.map_rotation_degrees(-90) == 270
+    assert c.map_rotation_degrees(450) == 90
+    assert c.map_rotation_degrees(44) == 0
+    assert c.map_rotation_degrees(46) == 90
+
+
+def test_map_rotation_degrees_invalid_fallback() -> None:
+    """缺失/非法朝向值回退 0（默认不旋转）。"""
+    assert c.map_rotation_degrees(None) == 0
+    assert c.map_rotation_degrees("") == 0
+    assert c.map_rotation_degrees("abc") == 0

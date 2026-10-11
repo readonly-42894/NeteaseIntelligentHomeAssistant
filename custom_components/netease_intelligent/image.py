@@ -13,7 +13,8 @@
   经 :func:`map_parser.apply_trajectory` 标进栅格后重渲染（与官方 App 一致）；累计
   轨迹点，同 URL 刷新时经 :func:`map_parser.trim_baked_history` 裁掉服务端已烘焙的
   点再重放，仅 ``mapUrl`` 变化才视为新地图并清空累计；
-- 配色由配置项 ``map_theme`` 决定（``light``/``dark``，默认 ``light``）。
+- 配色由配置项 ``map_theme`` 决定（``light``/``dark``，默认 ``light``）；整幅地图的
+  朝向由配置项 ``map_rotation`` 决定（``0``/``90``/``180``/``270`` 逆时针，默认 ``0``）。
 
 图片刷新时间戳（``image_last_updated``）仅在协调器更新时推进（不在地图读取
 方法内推进），符合 Home Assistant 对 ``image`` 实体的约定。
@@ -34,12 +35,15 @@ from homeassistant.util import dt as dt_util
 
 from .api import ApiError, NeteaseIntelligentApiClient
 from .const import (
+    CONF_MAP_ROTATION,
     CONF_MAP_THEME,
+    DEFAULT_MAP_ROTATION,
     DEFAULT_MAP_THEME,
     DOMAIN,
     MANUFACTURER,
     MAP_THEME_DARK,
     NAME,
+    map_rotation_degrees,
 )
 from .coordinator import (
     NeteaseIntelligentData,
@@ -109,6 +113,7 @@ class NeteaseIntelligentMapImage(
         self._applied_history: tuple[int, ...] | None = None
         self._rendered_image: bytes | None = None
         self._rendered_dark: bool | None = None
+        self._rendered_rotation: int | None = None
 
         self._attr_unique_id = f"{equip.unique_identifier}_map"
         self._attr_image_last_updated = dt_util.utcnow()
@@ -142,15 +147,19 @@ class NeteaseIntelligentMapImage(
             self._entry.options.get(CONF_MAP_THEME, DEFAULT_MAP_THEME)
             == MAP_THEME_DARK
         )
+        rotation = map_rotation_degrees(
+            self._entry.options.get(CONF_MAP_ROTATION, DEFAULT_MAP_ROTATION)
+        )
         uid = self._equip.unique_identifier
         revision = self.coordinator.map_revision
         _LOGGER.debug(
-            "扫地机 %s 地图请求：map_url=%s revision=%s 轨迹长=%s dark=%s",
+            "扫地机 %s 地图请求：map_url=%s revision=%s 轨迹长=%s dark=%s rotation=%s",
             uid,
             data.map_url,
             revision,
             len(data.map_history) if data.map_history else 0,
             dark,
+            rotation,
         )
 
         if (
@@ -202,15 +211,20 @@ class NeteaseIntelligentMapImage(
                 _LOGGER.warning("扫地机 %s 轨迹解析/应用失败：%s", uid, err)
             self._rendered_image = None
 
-        if self._rendered_image is not None and self._rendered_dark == dark:
+        if (
+            self._rendered_image is not None
+            and self._rendered_dark == dark
+            and self._rendered_rotation == rotation
+        ):
             return self._rendered_image
         try:
             image = await self.hass.async_add_executor_job(
-                partial(render_map, self._package, dark=dark)
+                partial(render_map, self._package, dark=dark, rotation=rotation)
             )
         except (ValueError, OSError) as err:
             _LOGGER.warning("扫地机 %s 地图渲染失败：%s", uid, err)
             return None
         self._rendered_image = image
         self._rendered_dark = dark
+        self._rendered_rotation = rotation
         return image

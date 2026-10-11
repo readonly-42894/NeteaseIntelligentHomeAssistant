@@ -36,7 +36,7 @@
 - [x] 登录流程：短信验证码 / 邮箱密码（网易 URS SDK），另保留手动录入 Cookie 兜底
 - [x] 家庭数据抽象（`models.py` / `api.py` / `coordinator.py`，装配进 `hass.data`）
 - [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor` + 充电中 `binary_sensor`
-- [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG；复用 App drawable 图标/纹理，默认按清扫结果显示已清扫地面/房间与轨迹，叠加虚拟墙、清扫区域与带朝向的机器人/充电座标记；支持浅色/深色两种配色；清扫中经推送 subtype 3 轨迹实时增长）
+- [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG；复用 App drawable 图标/纹理，默认按清扫结果显示已清扫地面/房间与轨迹，叠加虚拟墙、清扫区域与带朝向的机器人/充电座标记；支持浅色/深色两种配色，并可配置整幅地图朝向（0°/90°/180°/270° 旋转）；清扫中经推送 subtype 3 轨迹实时增长）
 - [x] 扫地机器人：控制后即时反馈（`vacuum` 乐观更新 + 立即刷新）；轮询频率固定（推送在线 10min、离线 5min，不随状态提速）
 - [x] 官方推送通道：Socket.IO 长连接（`iot_class=cloud_push`）为扫地机实时数据提供实时增补（轮询提供完整字段与基线）；探针 `scripts/push_probe.py`
 - [ ] 登录流程：手机号 + 密码 / 微信
@@ -46,7 +46,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| `config_flow.py` / `urs.py` | 登录配置流与网易 URS 登录 SDK 协议实现；选项流提供地图配色设置（`map_theme`） |
+| `config_flow.py` / `urs.py` | 登录配置流与网易 URS 登录 SDK 协议实现；选项流提供地图配色与朝向设置（`map_theme` / `map_rotation`） |
 | `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），实现家庭域与扫地机端点 |
 | `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO）与扫地机数据 DTO（`SweeperDeviceData`） |
 | `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data`；另含 `NeteaseIntelligentSweeperCoordinator` 缓存单台扫地机实时数据（**轮询为基础、推送实时增补**） |
@@ -54,9 +54,9 @@
 | `vacuum.py` | 扫地机器人 `vacuum` 实体（`StateVacuumEntity` + `VacuumActivity`：清扫/暂停/回充/吸力/寻找设备）；控制指令后**乐观更新**并触发快速刷新 |
 | `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
 | `binary_sensor.py` | 扫地机器人 `binary_sensor`：充电中（`device_class: battery_charging`，`chargeStatus == Charging`），供前端给电量实体显示充电图标/动效 |
-| `image.py` | 扫地机器人 `image` 实体：把 `mapUrl` 地图包渲染为 PNG 展示（配色由选项 `map_theme` 决定）；清扫中按推送 subtype 3 轨迹增量重放 |
+| `image.py` | 扫地机器人 `image` 实体：把 `mapUrl` 地图包渲染为 PNG 展示（配色由选项 `map_theme`、朝向由选项 `map_rotation` 决定）；清扫中按推送 subtype 3 轨迹增量重放 |
 | `map_parser.py` | 扫地机二进制地图包解析（复刻 App `MapDataParser`，纯标准库）；含推送轨迹复刻（`parse_trajectory` / `apply_trajectory`，对应 App `MapHistoryParser`） |
-| `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 App spirit 上色与坐标变换，直接贴 App drawable 图标/纹理；支持深色调色板；`history` 模式显示清扫结果与轨迹，叠加墙/区域/朝向标记） |
+| `map_render.py` | 用 Pillow 把解析结果渲染为 PNG（复刻 App spirit 上色与坐标变换，直接贴 App drawable 图标/纹理；支持深色调色板与整幅地图朝向旋转；`history` 模式显示清扫结果与轨迹，叠加墙/区域/朝向标记） |
 | `map_assets/` | 取自 App `res/drawable*` 的地图图标/纹理（机器人/充电座/定点透明 PNG，虚拟墙/区域/背景平铺纹理） |
 | `fonts/` | 内置地图字体 Noto Sans SC（SIL OFL 1.1），保证房间名等 CJK 文字在无 CJK 系统字体的宿主（如 HA 容器）也能正确渲染 |
 | `__init__.py` | 装配：建 API 客户端与协调器，存入 `hass.data[DOMAIN][entry_id]`，登记扫地机器人设备并装配 vacuum/sensor/binary_sensor/image 实体 |

@@ -58,10 +58,11 @@
   "options": {
     "step": {
       "init": {
-        "title": "地图配色",
-        "description": "选择扫地机器人地图的配色。",
+        "title": "地图显示",
+        "description": "选择扫地机器人地图的配色与朝向。",
         "data": {
-          "map_theme": "配色"
+          "map_theme": "配色",
+          "map_rotation": "朝向"
         }
       }
     }
@@ -71,6 +72,14 @@
       "options": {
         "light": "浅色",
         "dark": "深色"
+      }
+    },
+    "map_rotation": {
+      "options": {
+        "0": "默认（不旋转）",
+        "90": "逆时针 90°",
+        "180": "旋转 180°（上下颠倒）",
+        "270": "顺时针 90°"
       }
     }
   },

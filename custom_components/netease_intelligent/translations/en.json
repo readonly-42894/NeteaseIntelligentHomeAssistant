@@ -58,10 +58,11 @@
   "options": {
     "step": {
       "init": {
-        "title": "Map theme",
-        "description": "Choose the color scheme for the robot vacuum map.",
+        "title": "Map display",
+        "description": "Choose the color scheme and orientation for the robot vacuum map.",
         "data": {
-          "map_theme": "Color scheme"
+          "map_theme": "Color scheme",
+          "map_rotation": "Orientation"
         }
       }
     }
@@ -71,6 +72,14 @@
       "options": {
         "light": "Light",
         "dark": "Dark"
+      }
+    },
+    "map_rotation": {
+      "options": {
+        "0": "Default (no rotation)",
+        "90": "Rotate 90° counter-clockwise",
+        "180": "Rotate 180° (upside down)",
+        "270": "Rotate 90° clockwise"
       }
     }
   },

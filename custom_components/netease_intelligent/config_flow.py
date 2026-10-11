@@ -28,14 +28,17 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_EMAIL,
+    CONF_MAP_ROTATION,
     CONF_MAP_THEME,
     CONF_PASSWORD,
     CONF_PHONE,
     CONF_SMS_CODE,
     CONF_TOKEN,
     CONF_TOKEN_ID,
+    DEFAULT_MAP_ROTATION,
     DEFAULT_MAP_THEME,
     DOMAIN,
+    MAP_ROTATION_OPTIONS,
     MAP_THEME_OPTIONS,
 )
 from .urs import UrsClient, UrsError
@@ -213,27 +216,41 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class NeteaseIntelligentOptionsFlow(OptionsFlow):
-    """Handle options for 网易智造（目前为地图配色）。"""
+    """Handle options for 网易智造（地图配色与朝向）。"""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """选择地图配色（浅色/深色）。"""
+        """选择地图配色（浅色/深色）与朝向（旋转角度）。"""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
-        current = self.config_entry.options.get(CONF_MAP_THEME, DEFAULT_MAP_THEME)
+        current_theme = self.config_entry.options.get(
+            CONF_MAP_THEME, DEFAULT_MAP_THEME
+        )
+        current_rotation = self.config_entry.options.get(
+            CONF_MAP_ROTATION, DEFAULT_MAP_ROTATION
+        )
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_MAP_THEME, default=current): SelectSelector(
+                    vol.Required(CONF_MAP_THEME, default=current_theme): SelectSelector(
                         SelectSelectorConfig(
                             options=list(MAP_THEME_OPTIONS),
                             translation_key="map_theme",
                             mode=SelectSelectorMode.DROPDOWN,
                         )
-                    )
+                    ),
+                    vol.Required(
+                        CONF_MAP_ROTATION, default=current_rotation
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(MAP_ROTATION_OPTIONS),
+                            translation_key="map_rotation",
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                 }
             ),
         )

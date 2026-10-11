@@ -55,7 +55,7 @@ def _register_sweeper_devices(
 
 
 async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """选项更新后重载集成，使新配置（如地图配色）立即生效。"""
+    """选项更新后重载集成，使新配置（如地图配色/朝向）立即生效。"""
     await hass.config_entries.async_reload(entry.entry_id)
 
 

@@ -17,6 +17,8 @@
 - 房间名：白描边文字。
 - ``dark=True``（可选）：整幅地图改用深色调色板（深色界面下不刺眼），墙斜纹
   纹理同步重着色；其余渲染流程完全一致。
+- ``rotation``（可选，默认 ``0``）：把整幅地图（含轨迹、墙、区域、房间名、标记）
+  逆时针旋转给定角度，用于把地图转到与真实户型/App 视角一致的朝向。
 
 坐标约定：``MapData.physics_to_grid`` 得到栅格坐标；渲染时 **Y 轴翻转**，
 使栅格第 0 行绘制在图片底部，与 App 视角一致。
@@ -472,13 +474,15 @@ def render_map(
     target_size: int = MAP_DEFAULT_TARGET_SIZE,
     history: bool = True,
     dark: bool = False,
+    rotation: int = 0,
 ) -> bytes:
     """把地图包渲染为 PNG 字节。
 
     ``package`` 需包含 ``map_data``（否则抛 ``ValueError``）；``target_size``
     为输出图片的最大边长（像素）。``history`` 为 ``True``（默认）时按清扫结果
     着色并绘制 ``MapHistory`` 轨迹；为 ``False`` 时保持 App 实时视图外观。
-    ``dark`` 为 ``True`` 时使用深色调色板（深色界面下更柔和）。
+    ``dark`` 为 ``True`` 时使用深色调色板（深色界面下更柔和）。``rotation``
+    为整幅地图逆时针旋转的角度（90° 步长，``0`` 表示不旋转）。
     """
     map_data = package.map_data
     if map_data is None or map_data.size_x <= 0 or map_data.size_y <= 0:
@@ -654,6 +658,14 @@ def render_map(
                 2 * _marker_radius(map_data, cell, _ROBOT_SIZE_METERS),
                 math.degrees(package.robot.pose_phi),
             )
+
+    # 地图朝向：整幅旋转（含轨迹/墙/区域/房间名/标记）。90° 倍数时 Pillow 走
+    # 无损转置，无插值损失；其余角度用底色填充新出现的角。
+    angle = rotation % 360
+    if angle:
+        image = image.rotate(
+            angle, expand=True, resample=Image.BICUBIC, fillcolor=palette.background
+        )
 
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")

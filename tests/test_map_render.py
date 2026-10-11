@@ -277,3 +277,52 @@ def test_room_name_renders() -> None:
     )
     png = mr.render_map(mp.parse_map(raw))
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_rotation_90_swaps_dimensions() -> None:
+    """``rotation=90``/``270``：非方形地图宽高互换（整幅旋转）。"""
+    raw = build_map(
+        grid=[mp.MAP_VALUE_NOT_ARRIVED] * 24,
+        size_x=6,
+        size_y=4,
+        resolution=1.0,
+    )
+    package = mp.parse_map(raw)
+    base = Image.open(io.BytesIO(mr.render_map(package)))
+    rotated = Image.open(io.BytesIO(mr.render_map(package, rotation=90)))
+    assert rotated.size == (base.height, base.width)
+    assert rotated.size != base.size
+
+
+def test_rotation_360_equals_no_rotation() -> None:
+    """``rotation=360`` 与不旋转输出字节一致（角度取模 360）。"""
+    package = mp.parse_map(
+        build_map(grid=[mp.MAP_VALUE_NOT_ARRIVED] * 16, size_x=4, size_y=4, resolution=1.0)
+    )
+    assert mr.render_map(package, rotation=360) == mr.render_map(package, rotation=0)
+
+
+def test_rotation_180_keeps_dimensions() -> None:
+    """``rotation=180`` 保持尺寸且输出为合法 PNG。"""
+    package = mp.parse_map(
+        build_map(grid=[mp.MAP_VALUE_NOT_ARRIVED] * 16, size_x=4, size_y=4, resolution=1.0)
+    )
+    base = Image.open(io.BytesIO(mr.render_map(package)))
+    rotated = Image.open(io.BytesIO(mr.render_map(package, rotation=180)))
+    assert rotated.size == base.size
+    assert rotated.format == "PNG"
+
+
+def test_rotation_180_flips_position() -> None:
+    """``rotation=180``：非对称图案整体旋转（栅格左下障碍移动到右上）。"""
+    grid = [mp.MAP_VALUE_NOT_ARRIVED] * 16
+    grid[0] = mp.MAP_VALUE_OBSTACLE  # 栅格 (0, 0) → 因 Y 翻转落在图片左下
+    package = mp.parse_map(
+        build_map(grid=grid, size_x=4, size_y=4, resolution=1.0)
+    )
+    base = Image.open(io.BytesIO(mr.render_map(package))).convert("RGB")
+    rotated = Image.open(io.BytesIO(mr.render_map(package, rotation=180))).convert("RGB")
+    assert base.getpixel((100, base.height - 100)) == mr._COLOR_UNREACHABLE
+    assert (
+        rotated.getpixel((rotated.width - 100, 100)) == mr._COLOR_UNREACHABLE
+    )

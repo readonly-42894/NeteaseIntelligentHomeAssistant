@@ -190,4 +190,26 @@ MAP_THEME_DARK: Final = "dark"
 MAP_THEME_OPTIONS: Final = (MAP_THEME_LIGHT, MAP_THEME_DARK)
 DEFAULT_MAP_THEME: Final = MAP_THEME_LIGHT
 
+# 地图朝向（旋转）选项（image 实体，见 image.py / config_flow.py）：
+# 以 90° 为步长、逆时针为正（Pillow ``Image.rotate`` 约定），"0" 为不旋转（默认）。
+# 用于把渲染出的地图整体转到与真实户型/App 视角一致的朝向。
+CONF_MAP_ROTATION: Final = "map_rotation"
+MAP_ROTATION_OPTIONS: Final = ("0", "90", "180", "270")
+DEFAULT_MAP_ROTATION: Final = "0"
+
+
+def map_rotation_degrees(value: object) -> int:
+    """把配置中的地图朝向规整为 ``0``/``90``/``180``/``270``（逆时针）。
+
+    选项以字符串存储（HA ``SelectSelector`` 只接受字符串）；本函数兼容字符串与
+    数字输入，非法值回退 ``0``，并把角度吸附到最近的 90° 步长。
+    """
+    try:
+        degrees = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0
+    snapped = (degrees + 45) // 90 * 90 % 360
+    return snapped
+
+
 DEFAULT_NAME: Final = NAME
