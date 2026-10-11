@@ -39,6 +39,9 @@ def _load_module(name: str) -> None:
 _load_module("const")
 _load_module("models")
 
+# ``push_protocol`` 仅依赖 ``.models``（推送帧解析与数据合并）。
+_load_module("push_protocol")
+
 # ``api`` 依赖 ``aiohttp``（见 requirements_test.txt）与 ``.const`` / ``.models``。
 _load_module("api")
 

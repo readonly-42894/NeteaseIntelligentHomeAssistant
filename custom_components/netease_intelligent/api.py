@@ -30,7 +30,14 @@ from urllib.parse import quote
 import aiohttp
 
 from .const import BASE_URL
-from .models import Equip, Family, FamilyEnv, FamilyInfo, SweeperDeviceData
+from .models import (
+    Equip,
+    Family,
+    FamilyEnv,
+    FamilyInfo,
+    SweeperDeviceData,
+    UserInfo,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,6 +145,8 @@ PATH_FAMILY_INFO: str = "/ai-app/family/info"
 PATH_FAMILY_QUERY: str = "/ai-app/family/query"
 PATH_FAMILY_ENV_INFO: str = "/ai-app/family/env/info/homepage"
 PATH_EQUIP_LIST: str = "/ai-app/equip/list"
+PATH_ACCOUNT_INFO: str = "/ai-app/account/info"
+PATH_EVENT_VIEW: str = "/ai-app/app/event/view"
 
 # 扫地机模块端点（见 docs/openapi.yaml 的 sweeper tag）。
 PATH_SWEEPER_DEVICE_DATA: str = "/ai-app/sweeper/rv02/getDeviceData"
@@ -316,3 +325,33 @@ class NeteaseIntelligentApiClient:
             raise
         except (aiohttp.ClientError, TimeoutError) as err:
             raise ApiError(-1, str(err)) from err
+
+    async def get_account_info(self) -> UserInfo:
+        """``GET /ai-app/account/info``：账号信息（含 ``pid``）。
+
+        ``pid`` 用于推送通道的 ``bindUid``（``uid = ENV_APPNAME_pid``）。
+        """
+        result = await self._request(
+            "GET", PATH_ACCOUNT_INFO, params={"from": 1}
+        )
+        return UserInfo.from_dict(result)
+
+    async def send_page_event(
+        self, push_id: str, product_id: int, event_type: int, equip_id: str
+    ) -> Any:
+        """``GET /ai-app/app/event/view``：开始/关闭某设备的推送。
+
+        复刻 ``EventUtil.sendEvent``：``event_type`` 取
+        ``PUSH_EVENT_ENTRY_PAGE``（进入设备页=开始推送）或
+        ``PUSH_EVENT_EXIT_PAGE``（离开设备页=关闭推送）。
+        """
+        return await self._request(
+            "GET",
+            PATH_EVENT_VIEW,
+            params={
+                "pushId": push_id,
+                "productId": product_id,
+                "eventType": event_type,
+                "equipId": equip_id,
+            },
+        )

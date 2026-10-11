@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import NeteaseIntelligentApiClient
+from .api import ApiError, NeteaseIntelligentApiClient
 from .const import (
     CONF_TOKEN,
     CONF_TOKEN_ID,
@@ -23,6 +23,7 @@ from .coordinator import (
     NeteaseIntelligentData,
     NeteaseIntelligentSweeperCoordinator,
 )
+from .push import NeteaseIntelligentPushClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +60,44 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
     await hass.config_entries.async_reload(entry.entry_id)
 
 
+async def _async_setup_push(
+    hass: HomeAssistant,
+    client: NeteaseIntelligentApiClient,
+    coordinator: NeteaseIntelligentCoordinator,
+    sweeper_coordinators: dict[str, NeteaseIntelligentSweeperCoordinator],
+) -> NeteaseIntelligentPushClient | None:
+    """建立官方推送通道（推送为主、轮询兜底）。
+
+    任一前提不满足（无扫地机、账号信息获取失败、缺少 pid）时返回 ``None``，
+    集成退回纯轮询，不影响主流程。
+    """
+    equip_products = {
+        equip.id: equip.product_id
+        for equip in coordinator.sweeper_equips()
+        if equip.id
+    }
+    if not equip_products:
+        return None
+    try:
+        account = await client.get_account_info()
+    except ApiError as err:
+        _LOGGER.warning("获取账号信息失败，推送通道不可用，将使用轮询：%s", err)
+        return None
+    if not account.pid:
+        _LOGGER.warning("账号信息缺少 pid，推送通道不可用，将使用轮询")
+        return None
+    push_client = NeteaseIntelligentPushClient(
+        hass, client, account.pid, sweeper_coordinators, equip_products
+    )
+    await push_client.async_start()
+    _LOGGER.debug(
+        "推送通道已启动（uid 绑定 pid=%s，订阅设备 %d 台）",
+        account.pid,
+        len(equip_products),
+    )
+    return push_client
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up 网易智造 from a config entry."""
     client = NeteaseIntelligentApiClient(
@@ -92,6 +131,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client=client,
         coordinator=coordinator,
         sweeper_coordinators=sweeper_coordinators,
+        push_client=await _async_setup_push(
+            hass, client, coordinator, sweeper_coordinators
+        ),
     )
 
     # 登记扫地机器人设备；后续每次家庭数据刷新同步一次，覆盖新增/移除的扫地机。
@@ -109,5 +151,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        data: NeteaseIntelligentData | None = hass.data[DOMAIN].pop(
+            entry.entry_id, None
+        )
+        if data is not None and data.push_client is not None:
+            await data.push_client.async_stop()
     return unload_ok

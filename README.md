@@ -38,6 +38,7 @@
 - [x] 扫地机器人：设备登记 + `vacuum` 实体（清扫/暂停/回充/吸力/寻找）+ 电量/今日清扫统计 `sensor`
 - [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG；复用 App drawable 图标/纹理，默认按清扫结果显示已清扫地面/房间与轨迹，叠加虚拟墙、清扫区域与带朝向的机器人/充电座标记；支持浅色/深色两种配色）
 - [x] 扫地机器人：控制后即时反馈（`vacuum` 乐观更新 + 立即刷新）与自适应轮询（活动时短间隔、空闲时长间隔）
+- [x] 官方推送通道：Socket.IO 长连接（`iot_class=cloud_push`）作为扫地机实时数据主来源，轮询兜底；探针 `scripts/push_probe.py`
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
@@ -48,7 +49,8 @@
 | `config_flow.py` / `urs.py` | 登录配置流与网易 URS 登录 SDK 协议实现；选项流提供地图配色设置（`map_theme`） |
 | `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），实现家庭域与扫地机端点 |
 | `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO）与扫地机数据 DTO（`SweeperDeviceData`） |
-| `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data`；另含 `NeteaseIntelligentSweeperCoordinator` 按 `equipId` 拉取单台扫地机实时数据，并**自适应轮询**（活动时 20s、空闲/充电时 5min） |
+| `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data`；另含 `NeteaseIntelligentSweeperCoordinator` 缓存单台扫地机实时数据（**推送为主、轮询兜底**） |
+| `push.py` / `push_protocol.py` | 官方 Socket.IO 推送通道（`cloud_push`）：帧解析、载荷→`SweeperDeviceData` 映射、`pushId` 生成；断线退避重连，失败退回轮询 |
 | `vacuum.py` | 扫地机器人 `vacuum` 实体（`StateVacuumEntity` + `VacuumActivity`：清扫/暂停/回充/吸力/寻找设备）；控制指令后**乐观更新**并触发快速刷新 |
 | `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
 | `image.py` | 扫地机器人 `image` 实体：把 `mapUrl` 地图包渲染为 PNG 展示（配色由选项 `map_theme` 决定） |

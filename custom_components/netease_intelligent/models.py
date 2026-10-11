@@ -32,6 +32,7 @@ __all__ = [
     "Member",
     "Room",
     "SweeperDeviceData",
+    "UserInfo",
 ]
 
 
@@ -159,6 +160,24 @@ class Member(_Model):
     head_pic: str = ""
     name: str = ""
     uid: str = ""
+
+
+@dataclass
+class UserInfo(_Model):
+    """账号信息（App DTO ``UserInfo``，``GET /ai-app/account/info``）。
+
+    ``pid`` 用于推送通道的 ``bindUid``（``uid = ENV_APPNAME_pid``）。
+    """
+
+    pid: int = 0
+    uid: str = ""
+    nickname: str = ""
+    account_desc: str = ""
+    account_type: str = ""
+    sex: int = 0
+    birthday: int = 0
+    welcome_flg: int = 0
+    thumbnails: str = ""
 
 
 @dataclass

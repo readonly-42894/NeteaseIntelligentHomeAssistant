@@ -121,6 +121,33 @@ SWEEPER_COMMAND_ACTIVE_WINDOW: Final = timedelta(minutes=1)
 # 会自主变化的状态（清扫中/回充中）：自适应轮询据此判定是否改用短间隔。
 SWEEPER_ACTIVE_ACTIVITIES: Final = frozenset({"cleaning", "returning"})
 
+# 推送在线时扫地机的兜底轮询间隔：推送为主数据源，轮询仅防推送静默丢失。
+SWEEPER_PUSH_FALLBACK_INTERVAL: Final = timedelta(minutes=10)
+
+
+# 官方推送通道（Socket.IO 长连接；协议见 push_protocol.py 与 docs/api/集成实现.md
+# 「官方推送通道」小节，实抓来源见 scripts/push_probe.py）。
+PUSH_HOST: Final = "wss://3c.163.com/socket.io/"
+PUSH_ENV: Final = "r"  # release 环境（AlcsConstant.MODE_VALUE_READ）
+PUSH_APP_NAME: Final = "intelligent"  # R.string.host_push_product_name
+PUSH_APP_VERSION: Final = "5.3.5"  # versionName
+PUSH_APP_SOURCE: Final = "Release"  # assets/source 首段
+PUSH_PLATFORM: Final = "android"
+PUSH_TOPICS: Final = ("noti", "event")
+PUSH_PING_INTERVAL: Final = 20  # 客户端主动心跳间隔（秒；EIO v3 客户端 ping）
+PUSH_RECONNECT_MIN: Final = 5  # 重连退避下限（秒）
+PUSH_RECONNECT_MAX: Final = 60  # 重连退避上限（秒）
+
+# 设备页事件（EventUtil.EVENT_TYPE_ENTRY_PAGE/EXIT_PAGE）：
+# 进入设备页=开始推送，离开设备页=关闭推送。
+PUSH_EVENT_ENTRY_PAGE: Final = 1
+PUSH_EVENT_EXIT_PAGE: Final = 2
+
+
+def push_uid(pid: int) -> str:
+    """推送通道的用户绑定标识 ``uid``（App 拼装：ENV_APPNAME_pid）。"""
+    return f"{PUSH_ENV}_{PUSH_APP_NAME}_{pid}"
+
 
 def sweeper_is_active(work_mode: str, fault_type: int, charge_status: int) -> bool:
     """设备是否处于会自主变化的状态（清扫中/回充中），用于自适应轮询间隔。"""
