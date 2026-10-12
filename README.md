@@ -39,6 +39,7 @@
 - [x] 扫地机器人：实时地图 `image` 实体（下载 `mapUrl` 二进制地图包，解析并渲染为 PNG；复用 App drawable 图标/纹理，默认按清扫结果显示已清扫地面/房间与轨迹，叠加虚拟墙、清扫区域与带朝向的机器人/充电座标记；支持浅色/深色两种配色，并可配置整幅地图朝向（0°/90°/180°/270° 旋转）；清扫中经推送 subtype 3 轨迹实时增长）
 - [x] 扫地机器人：控制后即时反馈（`vacuum` 乐观更新 + 立即刷新）；轮询频率固定（推送在线 10min、离线 5min，不随状态提速）
 - [x] 官方推送通道：Socket.IO 长连接（`iot_class=cloud_push`）为扫地机实时数据提供实时增补（轮询提供完整字段与基线）；探针 `scripts/push_probe.py`
+- [x] 官方通知：复刻同一通道的 `noti` 主题（回执 `notificationReply` + `lastNotiId` 持久化 + 按 id 去重），收到通知时在事件总线触发 `netease_intelligent_notification`（仅事件总线，不落 `persistent_notification`）；只要取到 `pid` 即启用，不依赖扫地机
 - [ ] 登录流程：手机号 + 密码 / 微信
 - [ ] 设备 / 家庭 / 场景实体
 
@@ -50,7 +51,7 @@
 | `api.py` | 业务 API 客户端（Cookie 认证 + `ResponseWrapper` 解包），实现家庭域与扫地机端点 |
 | `models.py` | 家庭域数据模型（`Family`/`Room`/`Member`/`FamilyEquip`/`Equip`/`FamilyEnv` 等 DTO）与扫地机数据 DTO（`SweeperDeviceData`） |
 | `coordinator.py` | `DataUpdateCoordinator`，周期拉取家庭列表并缓存于 `coordinator.data`；另含 `NeteaseIntelligentSweeperCoordinator` 缓存单台扫地机实时数据（**轮询为基础、推送实时增补**） |
-| `push.py` / `push_protocol.py` | 官方 Socket.IO 推送通道（`cloud_push`）：帧解析、载荷→`SweeperDeviceData` 映射、`pushId` 生成；断线退避重连，不可用时轮询继续提供数据 |
+| `push.py` / `push_protocol.py` | 官方 Socket.IO 推送通道（`cloud_push`）：帧解析、载荷→`SweeperDeviceData` 映射、`pushId` 生成、`noti` 通知解析与回执；断线退避重连，不可用时轮询继续提供数据，收到通知在事件总线触发 `netease_intelligent_notification` |
 | `vacuum.py` | 扫地机器人 `vacuum` 实体（`StateVacuumEntity` + `VacuumActivity`：清扫/暂停/回充/吸力/寻找设备）；控制指令后**乐观更新**并触发快速刷新 |
 | `select.py` | 扫地机器人 `select` 实体：清扫模式（复刻官方「模式选择」弹窗 `ModeControlDialog`——自动清扫/仿真拖地，Pro 款为探索建图、非 Pro 款为沿边清扫；当前模式由 `workMode` 反推，选择即 `setWorkMode(ctrltype, Start)` 切换，乐观更新 + 快速刷新） |
 | `sensor.py` | 扫地机器人 `sensor`：电量、今日清扫面积、今日清扫时长 |
