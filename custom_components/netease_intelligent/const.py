@@ -54,7 +54,12 @@ SWEEPER_FAULT_TYPE_ERROR: Final = 1
 
 # 清扫模式（ModeControlTypeEnum，setWorkMode 的 ctrltype 参数）。
 SWEEPER_MODE_AUTO_CLEAN: Final = 0  # 自动清扫
+SWEEPER_MODE_SIDE_CLEAN: Final = 1  # 沿边清扫
+SWEEPER_MODE_MOP_CLEAN: Final = 2  # 仿真拖地
 SWEEPER_MODE_CHARGE: Final = 3  # 回充
+SWEEPER_MODE_SPOT_CLEAN: Final = 4  # 定点清扫
+SWEEPER_MODE_AREA_CLEAN: Final = 5  # 区域清扫
+SWEEPER_MODE_PATROL_CLEAN: Final = 6  # 探索建图
 # 清扫动作（ModeControlValueEnum，setWorkMode 的 value 参数）。
 SWEEPER_ACTION_STOP: Final = 0
 SWEEPER_ACTION_START: Final = 1
@@ -131,6 +136,81 @@ def sweeper_battery_charging(charge_status: int) -> bool:
     充电图标/动效。
     """
     return charge_status == SWEEPER_CHARGE_CHARGING
+
+
+# RV03（Pro 款）的 ``productId``（App ``SweeperConfig``：RV02=9、RV03=26）；
+# 清扫模式选项据此决定——Pro 提供「探索建图」、非 Pro 提供「沿边清扫」，复刻官方
+# ``ModeControlDialog``（``SweeperConfig.isPro()`` 时把 Side 换成 Patrol）。
+SWEEPER_PRO_PRODUCT_ID: Final = 26
+
+# 清扫模式选择实体的选项标签（取自 App 官方文案：
+# ``sweeper_auto_clean`` / ``sweeper_auto_mop`` / ``sweeper_side_clean`` /
+# ``sweeper_patrol_clean``）。
+SWEEPER_CLEAN_MODE_AUTO: Final = "自动清扫"
+SWEEPER_CLEAN_MODE_MOP: Final = "仿真拖地"
+SWEEPER_CLEAN_MODE_SIDE: Final = "沿边清扫"
+SWEEPER_CLEAN_MODE_PATROL: Final = "探索建图"
+
+# 各机型可选清扫模式（顺序与官方 ModeControlDialog 的 modeList 一致：Auto、Mop，
+# 再按是否 Pro 追加 Patrol / Side）。
+SWEEPER_CLEAN_MODES: Final = (
+    SWEEPER_CLEAN_MODE_AUTO,
+    SWEEPER_CLEAN_MODE_MOP,
+    SWEEPER_CLEAN_MODE_SIDE,
+)
+SWEEPER_CLEAN_MODES_PRO: Final = (
+    SWEEPER_CLEAN_MODE_AUTO,
+    SWEEPER_CLEAN_MODE_MOP,
+    SWEEPER_CLEAN_MODE_PATROL,
+)
+
+# 选项标签 → setWorkMode 的 ctrltype（ModeControlTypeEnum）。
+SWEEPER_CLEAN_MODE_TO_CTRLTYPE: Final = {
+    SWEEPER_CLEAN_MODE_AUTO: SWEEPER_MODE_AUTO_CLEAN,
+    SWEEPER_CLEAN_MODE_MOP: SWEEPER_MODE_MOP_CLEAN,
+    SWEEPER_CLEAN_MODE_SIDE: SWEEPER_MODE_SIDE_CLEAN,
+    SWEEPER_CLEAN_MODE_PATROL: SWEEPER_MODE_PATROL_CLEAN,
+}
+
+# 各清扫模式对应的 workMode 码值（WorkModeEnum，字符串编码）。
+SWEEPER_SIDE_MODE_CODES: Final = frozenset({"25", "26", "27", "28", "29"})
+SWEEPER_MOP_MODE_CODES: Final = frozenset({"36", "37", "38", "39", "40"})
+SWEEPER_PATROL_MODE_CODES: Final = frozenset({"45", "46", "47", "48", "49"})
+
+
+def sweeper_is_pro(product_id: int) -> bool:
+    """是否为 Pro 款扫地机（RV03）。"""
+    return product_id == SWEEPER_PRO_PRODUCT_ID
+
+
+def sweeper_clean_modes(product_id: int) -> tuple[str, ...]:
+    """该机型可选的清扫模式（Pro 用「探索建图」，非 Pro 用「沿边清扫」）。"""
+    return SWEEPER_CLEAN_MODES_PRO if sweeper_is_pro(product_id) else SWEEPER_CLEAN_MODES
+
+
+def sweeper_clean_mode(work_mode: str) -> str | None:
+    """把 ``workMode`` 映射为当前清扫模式标签（返回 :data:`SWEEPER_CLEAN_MODE_*` 之一）。
+
+    复刻 App ``HomeActivity.getCurrentModeControlType()``：沿边/拖地/探索各有独立
+    码值分组，其余（自动/定点/区域/计划/手动/回充/Loading 等）统一归入「自动清扫」。
+    未知码值返回 ``None``；纯函数，便于单元测试。
+    """
+    if work_mode in SWEEPER_SIDE_MODE_CODES:
+        return SWEEPER_CLEAN_MODE_SIDE
+    if work_mode in SWEEPER_MOP_MODE_CODES:
+        return SWEEPER_CLEAN_MODE_MOP
+    if work_mode in SWEEPER_PATROL_MODE_CODES:
+        return SWEEPER_CLEAN_MODE_PATROL
+    if work_mode in (
+        SWEEPER_MODE_CLEANING
+        | SWEEPER_MODE_PAUSED
+        | SWEEPER_MODE_RETURNING
+        | SWEEPER_MODE_BREAKPOINT
+        | SWEEPER_MODE_IDLE
+    ) or work_mode == "-1":
+        return SWEEPER_CLEAN_MODE_AUTO
+    return None
+
 
 # 家庭数据轮询间隔（见 coordinator.py 的 NeteaseIntelligentCoordinator）。
 UPDATE_INTERVAL: Final = timedelta(minutes=5)

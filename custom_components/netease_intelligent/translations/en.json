@@ -84,6 +84,9 @@
     }
   },
   "entity": {
+    "select": {
+      "clean_mode": { "name": "Cleaning mode" }
+    },
     "sensor": {
       "battery": { "name": "Battery" },
       "today_clean_size": { "name": "Today cleaned area" },

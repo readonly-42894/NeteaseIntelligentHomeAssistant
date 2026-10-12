@@ -26,7 +26,7 @@ from .push import NeteaseIntelligentPushClient
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["vacuum", "sensor", "binary_sensor", "image"]
+PLATFORMS: list[str] = ["vacuum", "select", "sensor", "binary_sensor", "image"]
 
 
 def _register_sweeper_devices(

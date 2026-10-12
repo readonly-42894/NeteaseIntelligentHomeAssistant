@@ -163,3 +163,55 @@ def test_map_rotation_degrees_invalid_fallback() -> None:
     assert c.map_rotation_degrees(None) == 0
     assert c.map_rotation_degrees("") == 0
     assert c.map_rotation_degrees("abc") == 0
+
+
+def test_sweeper_clean_mode_mapping() -> None:
+    """workMode 码值 → 清扫模式（复刻 App getCurrentModeControlType）。"""
+    # 自动清扫：自动/手动/定点/区域/计划/回充等，均归入「自动清扫」。
+    for wm in ("0", "1", "2", "4", "7", "10", "11", "30", "100", "104"):
+        assert c.sweeper_clean_mode(wm) == c.SWEEPER_CLEAN_MODE_AUTO
+    assert c.sweeper_clean_mode("-1") == c.SWEEPER_CLEAN_MODE_AUTO  # Loading
+    # 拖地/沿边/探索为独立分组。
+    for wm in ("36", "37", "38", "39", "40"):
+        assert c.sweeper_clean_mode(wm) == c.SWEEPER_CLEAN_MODE_MOP
+    for wm in ("25", "26", "27", "28", "29"):
+        assert c.sweeper_clean_mode(wm) == c.SWEEPER_CLEAN_MODE_SIDE
+    for wm in ("45", "46", "47", "48", "49"):
+        assert c.sweeper_clean_mode(wm) == c.SWEEPER_CLEAN_MODE_PATROL
+    # 未知码值不猜测。
+    assert c.sweeper_clean_mode("999") is None
+    assert c.sweeper_clean_mode("") is None
+
+
+def test_sweeper_clean_mode_covers_all_known_modes() -> None:
+    """全部已知 workMode 码值都能映射到某个清扫模式（漏码会让 select 选项缺失）。"""
+    known = {
+        "0", "1", "2", "4", "5", "7", "9", "10", "11", "12", "14",
+        "25", "26", "27", "28", "29", "30", "31", "32", "33", "35",
+        "36", "37", "38", "39", "40", "45", "46", "47", "48", "49",
+        "100", "101", "102", "103", "104", "-1",
+    }
+    for code in known:
+        assert c.sweeper_clean_mode(code) is not None, code
+
+
+def test_sweeper_clean_modes_by_product() -> None:
+    """清扫模式选项按机型区分：Pro（RV03=26）用探索建图，非 Pro（RV02=9）用沿边清扫。"""
+    assert c.sweeper_is_pro(26) is True
+    assert c.sweeper_is_pro(9) is False
+    assert c.sweeper_clean_modes(9) == c.SWEEPER_CLEAN_MODES
+    assert c.sweeper_clean_modes(26) == c.SWEEPER_CLEAN_MODES_PRO
+    assert c.SWEEPER_CLEAN_MODE_SIDE in c.sweeper_clean_modes(9)
+    assert c.SWEEPER_CLEAN_MODE_SIDE not in c.sweeper_clean_modes(26)
+    assert c.SWEEPER_CLEAN_MODE_PATROL in c.sweeper_clean_modes(26)
+    assert c.SWEEPER_CLEAN_MODE_PATROL not in c.sweeper_clean_modes(9)
+
+
+def test_sweeper_clean_mode_ctrltype_mapping() -> None:
+    """选项标签 → setWorkMode ctrltype（ModeControlTypeEnum 码值），且覆盖全部选项。"""
+    assert c.SWEEPER_CLEAN_MODE_TO_CTRLTYPE[c.SWEEPER_CLEAN_MODE_AUTO] == 0
+    assert c.SWEEPER_CLEAN_MODE_TO_CTRLTYPE[c.SWEEPER_CLEAN_MODE_SIDE] == 1
+    assert c.SWEEPER_CLEAN_MODE_TO_CTRLTYPE[c.SWEEPER_CLEAN_MODE_MOP] == 2
+    assert c.SWEEPER_CLEAN_MODE_TO_CTRLTYPE[c.SWEEPER_CLEAN_MODE_PATROL] == 6
+    for option in c.SWEEPER_CLEAN_MODES_PRO:
+        assert option in c.SWEEPER_CLEAN_MODE_TO_CTRLTYPE

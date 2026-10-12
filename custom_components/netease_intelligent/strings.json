@@ -84,6 +84,9 @@
     }
   },
   "entity": {
+    "select": {
+      "clean_mode": { "name": "清扫模式" }
+    },
     "image": {
       "map": { "name": "地图" }
     }
