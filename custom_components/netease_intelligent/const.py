@@ -241,6 +241,11 @@ PUSH_RECONNECT_MAX: Final = 60  # 重连退避上限（秒）
 PUSH_EVENT_ENTRY_PAGE: Final = 1
 PUSH_EVENT_EXIT_PAGE: Final = 2
 
+# 集成抛出的 HA 事件：收到官方 ``noti`` 主题通知、且非设备事件（opType != 10）时，
+# 在事件总线上触发（见 __init__.py / push.py，协议见 docs/api/集成实现.md
+#「通知（noti 主题）」小节）。
+EVENT_NOTIFICATION: Final = "netease_intelligent_notification"
+
 
 def push_uid(pid: int) -> str:
     """推送通道的用户绑定标识 ``uid``（App 拼装：ENV_APPNAME_pid）。"""

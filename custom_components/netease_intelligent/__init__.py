@@ -14,6 +14,7 @@ from .const import (
     CONF_TOKEN,
     CONF_TOKEN_ID,
     DOMAIN,
+    EVENT_NOTIFICATION,
     MANUFACTURER,
     NAME,
 )
@@ -23,6 +24,7 @@ from .coordinator import (
     NeteaseIntelligentSweeperCoordinator,
 )
 from .push import NeteaseIntelligentPushClient
+from .push_protocol import NotificationPacket
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,24 +61,40 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
     await hass.config_entries.async_reload(entry.entry_id)
 
 
+def _fire_notification(hass: HomeAssistant, packet: NotificationPacket) -> None:
+    """把一条官方通知抛到 HA 事件总线（``EVENT_NOTIFICATION``）。"""
+    hass.bus.async_fire(
+        EVENT_NOTIFICATION,
+        {
+            "title": packet.title,
+            "message": packet.message,
+            "content": packet.content,
+            "url": packet.url,
+            "img_url": packet.img_url,
+            "op_type": packet.op_type,
+            "view_type": packet.view_type,
+            "mc_id": packet.mc_id,
+            "mc_type": packet.mc_type,
+            "valid_time": packet.valid_time,
+            "timestamp": packet.timestamp,
+            "id": packet.id,
+        },
+    )
+
+
 async def _async_setup_push(
     hass: HomeAssistant,
+    entry: ConfigEntry,
     client: NeteaseIntelligentApiClient,
     coordinator: NeteaseIntelligentCoordinator,
     sweeper_coordinators: dict[str, NeteaseIntelligentSweeperCoordinator],
 ) -> NeteaseIntelligentPushClient | None:
     """建立官方推送通道（轮询为基础，推送为实时增补）。
 
-    任一前提不满足（无扫地机、账号信息获取失败、缺少 pid）时返回 ``None``，
-    集成退回纯轮询，不影响主流程。
+    通知（``noti`` 主题）订阅与是否有扫地机无关：只要有 ``pid`` 就启动，收到通知时
+    在事件总线触发 ``EVENT_NOTIFICATION``（回调见 ``_fire_notification``）。仅当
+    账号信息获取失败或缺少 ``pid`` 时返回 ``None``，集成退回纯轮询，不影响主流程。
     """
-    equip_products = {
-        equip.id: equip.product_id
-        for equip in coordinator.sweeper_equips()
-        if equip.id
-    }
-    if not equip_products:
-        return None
     try:
         account = await client.get_account_info()
     except ApiError as err:
@@ -85,8 +103,22 @@ async def _async_setup_push(
     if not account.pid:
         _LOGGER.warning("账号信息缺少 pid，推送通道不可用，将使用轮询")
         return None
+
+    equip_products = {
+        equip.id: equip.product_id
+        for equip in coordinator.sweeper_equips()
+        if equip.id
+    }
     push_client = NeteaseIntelligentPushClient(
-        hass, client, account.pid, sweeper_coordinators, equip_products
+        hass,
+        client,
+        account.pid,
+        entry.entry_id,
+        sweeper_coordinators,
+        equip_products,
+    )
+    push_client.set_notification_callback(
+        lambda packet: _fire_notification(hass, packet)
     )
     await push_client.async_start()
     _LOGGER.debug(
@@ -130,7 +162,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator=coordinator,
         sweeper_coordinators=sweeper_coordinators,
         push_client=await _async_setup_push(
-            hass, client, coordinator, sweeper_coordinators
+            hass, entry, client, coordinator, sweeper_coordinators
         ),
     )
 

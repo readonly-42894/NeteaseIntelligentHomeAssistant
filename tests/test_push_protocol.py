@@ -138,3 +138,106 @@ def test_make_push_id() -> None:
     assert len(push_id) == p.PUSH_ID_LENGTH == 26
     assert set(push_id) <= set(p.PUSH_ID_ALPHABET)
     assert p.make_push_id() != push_id
+
+
+def _noti_frame(
+    android: dict | None = None,
+    event: str = "noti",
+    packet_id: object = "100",
+    timestamp: int = 1700000000000,
+    **outer: object,
+) -> str:
+    """按官方 ``notificationListener`` 的帧结构拼一条 ``42["noti", {...}]`` 帧。"""
+    envelope: dict = {"id": packet_id, "timestamp": timestamp, **outer}
+    envelope["android"] = android if android is not None else {}
+    return "42" + json.dumps([event, envelope])
+
+
+def _android(
+    title: object = "标题",
+    message: str = "正文",
+    payload: object = None,
+    data: dict | None = None,
+) -> dict:
+    """构造 ``android`` 段；``payload`` 缺省时为含 ``data`` 的 ``PushPayload``。"""
+    if payload is None:
+        payload = {"msgType": "msg_notify", "data": data or {}}
+    android: dict = {"message": message}
+    if title is not None:
+        android["title"] = title
+    android["payload"] = payload
+    return android
+
+
+def test_decode_notification_frame() -> None:
+    """标准 ``noti`` 帧：外层投递信息 + ``android.payload`` 正文全部解析。"""
+    data = {
+        "opType": 3,
+        "viewType": 2,
+        "content": "内容",
+        "url": "https://x/u",
+        "imgUrl": "https://x/img",
+        "mcId": "m-1",
+        "mcType": 1,
+        "validTime": 123,
+    }
+    packet = p.decode_notification_frame(_noti_frame(_android(data=data), ttl="t-1"))
+    assert packet is not None
+    assert packet.id == "100"
+    assert packet.timestamp == 1700000000000
+    assert packet.ttl == "t-1"
+    assert packet.title == "标题"
+    assert packet.message == "正文"
+    assert packet.op_type == 3
+    assert packet.view_type == 2
+    assert packet.content == "内容"
+    assert packet.url == "https://x/u"
+    assert packet.img_url == "https://x/img"
+    assert packet.mc_id == "m-1"
+    assert packet.mc_type == 1
+    assert packet.valid_time == 123
+    assert packet.data["opType"] == 3
+
+
+def test_decode_notification_frame_short_name() -> None:
+    """简名 ``n`` 事件与 ``noti`` 等价（官方共用同一监听器）。"""
+    packet = p.decode_notification_frame(_noti_frame(_android(), event="n"))
+    assert packet is not None
+    assert packet.title == "标题"
+
+
+def test_decode_notification_frame_payload_as_string() -> None:
+    """``android.payload`` 为字符串化的 ``PushPayload`` 时同样解析。"""
+    payload = json.dumps({"msgType": "msg_notify", "data": {"opType": 2}})
+    packet = p.decode_notification_frame(_noti_frame(_android(payload=payload)))
+    assert packet is not None
+    assert packet.op_type == 2
+
+
+def test_decode_notification_frame_missing_title() -> None:
+    """缺 ``android.title``：仍返回包（官方回执但不展示），``title`` 为空串。"""
+    android = {"message": "只有正文", "payload": {"data": {"opType": 3}}}
+    packet = p.decode_notification_frame(_noti_frame(android))
+    assert packet is not None
+    assert packet.title == ""
+    assert packet.message == "只有正文"
+
+
+def test_decode_notification_frame_tolerates_bad_payload() -> None:
+    """``payload`` 非法（非 JSON 字符串/非字典）时正文为空，不抛异常。"""
+    packet = p.decode_notification_frame(_noti_frame(_android(payload="not json")))
+    assert packet is not None
+    assert packet.op_type is None
+    assert packet.data == {}
+
+
+def test_decode_notification_frame_rejects_malformed() -> None:
+    """非通知事件、缺 ``id``、畸形帧一律返回 ``None``。"""
+    assert p.decode_notification_frame("") is None
+    assert p.decode_notification_frame("40") is None
+    assert p.decode_notification_frame("42 not json") is None
+    assert p.decode_notification_frame(_frame(1, {"battery": 1})) is None  # "p" 帧
+    assert p.decode_notification_frame('42["other",{}]') is None
+    assert p.decode_notification_frame('42["noti",{}]') is None  # 缺 id
+    assert p.decode_notification_frame('42["noti",{"id":""}]') is None
+    assert p.decode_notification_frame('42["noti","x"]') is None

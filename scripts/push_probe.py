@@ -31,6 +31,11 @@
 6. 推送：``42["p",{"android":{"payload":{"msgType":..,"data":{"opType":10,
    "json":{"eventType":1,"subtype":..,"type":..,"payload":{..}}}}}}]``，
    ``subtype`` 1=设备状态 / 2=地图 / 3=轨迹；``type`` 为 productId。
+7. 通知：另一类推送为 ``noti`` 主题
+   ``42["noti",{"id":..,"ttl":..,"timestamp":..,"android":{"title":..,"message":..,
+   "payload":"<PushPayload JSON 字符串>"}}]``（简名 ``"n"`` 等价，官方共用同一
+   监听器）。收到后须回 ``42["notificationReply",{"id":..,"timestamp":..}]``；
+   否则服务端会按 TTL 重发。``android.title`` 为空时不展示。
 
 ``uid`` 构造 = ``ENV + "_" + APP_NAME + "_" + pid``。release 下
 ``ENV = "r"``（``AlcsConstant.MODE_VALUE_READ``）、
@@ -83,6 +88,9 @@ SUBTYPES = {
     2: "地图(Sweeper_Push_Map)",
     3: "轨迹(Sweeper_Push_History)",
 }
+
+# 通知主题事件名（``SocketIOProxyClient`` 同时注册全名 ``noti`` 与简名 ``n``）。
+NOTI_EVENTS = ("noti", "n")
 
 
 def make_push_id() -> str:
@@ -166,6 +174,72 @@ def handle_push(frame: str) -> None:
     )
     print("   subtype 说明:", SUBTYPES.get(subtype, "?"), flush=True)
     print("   payload:", json.dumps(equipment, ensure_ascii=False)[:1000], flush=True)
+
+
+def parse_noti(frame: str) -> tuple[str, int, dict, dict] | None:
+    """解析 ``42["noti"|"n", {...}]``，返回 ``(id, timestamp, android, envelope)``。
+
+    非通知事件、缺 ``id`` 或畸形帧返回 ``None``。
+    """
+    try:
+        parsed = json.loads(frame[2:])
+    except ValueError:
+        return None
+    if not (isinstance(parsed, list) and parsed and parsed[0] in NOTI_EVENTS):
+        return None
+    envelope = parsed[1] if len(parsed) > 1 and isinstance(parsed[1], dict) else {}
+    raw_id = envelope.get("id")
+    if raw_id is None or raw_id == "":
+        return None
+    android = envelope.get("android")
+    if not isinstance(android, dict):
+        android = {}
+    return str(raw_id), int(envelope.get("timestamp") or 0), android, envelope
+
+
+def print_noti(frame: str) -> str | None:
+    """打印一条通知并返回 ``notificationReply`` 帧（无 timestamp 时为 ``None``）。"""
+    parsed = parse_noti(frame)
+    if parsed is None:
+        print("   (无法解析的通知帧)", flush=True)
+        return None
+    noti_id, timestamp, android, envelope = parsed
+    print(
+        "   NOTI id=%r ttl=%r unicast=%r timestamp=%r title=%r message=%r"
+        % (
+            noti_id,
+            envelope.get("ttl"),
+            envelope.get("unicast"),
+            timestamp,
+            android.get("title"),
+            android.get("message"),
+        ),
+        flush=True,
+    )
+    payload = android.get("payload")
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except ValueError:
+            payload = None
+    if isinstance(payload, dict):
+        data = payload.get("data") or {}
+        print(
+            "   data opType=%r viewType=%r content=%r url=%r imgUrl=%r"
+            % (
+                data.get("opType"),
+                data.get("viewType"),
+                data.get("content"),
+                data.get("url"),
+                data.get("imgUrl"),
+            ),
+            flush=True,
+        )
+    if timestamp > 0:
+        return "42" + json.dumps(
+            ["notificationReply", {"id": noti_id, "timestamp": timestamp}]
+        )
+    return None
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -254,7 +328,7 @@ async def run(args: argparse.Namespace) -> int:
                                     "id": push_id,
                                     "platform": PLATFORM,
                                     "topics": TOPICS,
-                                    "lastPacketIds": {"noti": "0"},
+                                    "lastPacketIds": {"noti": args.last_noti_id},
                                 },
                             ]
                         )
@@ -276,6 +350,11 @@ async def run(args: argparse.Namespace) -> int:
                 elif frame.startswith('42["p"') or frame.startswith('42["push"'):
                     print(f"[+{loop.time() - t0:7.2f}s] << {frame[:220]}", flush=True)
                     handle_push(frame)
+                elif frame.startswith('42["noti"') or frame.startswith('42["n"'):
+                    print(f"[+{loop.time() - t0:7.2f}s] << {frame[:220]}", flush=True)
+                    reply = print_noti(frame)
+                    if reply is not None:
+                        await send(reply)
                 elif frame.startswith("2"):
                     await send("3")
                 elif frame.startswith("1"):
@@ -326,6 +405,11 @@ def main() -> int:
         "--no-event-view",
         action="store_true",
         help="即使给了 --equip-id 也不调用 event/view",
+    )
+    parser.add_argument(
+        "--last-noti-id",
+        default="0",
+        help="pushId 注册时回传的 lastPacketIds.noti（默认 0，从头接收）",
     )
     args = parser.parse_args()
     return asyncio.run(run(args))

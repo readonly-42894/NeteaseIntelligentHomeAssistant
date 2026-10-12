@@ -11,13 +11,18 @@ App 的实抓 WebSocket HAR（见 ``docs/api/集成实现.md``「官方推送通
             "subtype": 1|2|3, "type": <productId>, "payload": {...}}}}}}]
 
 ``subtype``：1=设备状态（字段与 ``getDeviceData`` 一致）、2=地图、3=轨迹。
+
+另一类帧是 ``noti`` 主题的通知（事件名 ``"noti"`` 或简名 ``"n"``，见
+``decode_notification_frame``），结构与设备事件不同：外层是投递信息
+（``id``/``ttl``/``timestamp``），正文在 ``android.payload``（字符串化的
+``PushPayload``，见官方 ``host/modules/push/PushUtil``）。
 """
 
 from __future__ import annotations
 
 import json
 import secrets
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .models import SweeperDeviceData
@@ -43,6 +48,14 @@ MAP_MASK_MEMORY: int = 5
 _IGNORED_MAP_MASKS: frozenset[int] = frozenset(
     {MAP_MASK_ZONE, MAP_MASK_SPOT, MAP_MASK_MEMORY}
 )
+
+# 通知主题的事件名：官方 ``SocketIOProxyClient`` 同时注册全名 ``"noti"`` 与简名 ``"n"``
+# （二者共用同一个监听器）。
+NOTI_EVENT_NAMES: frozenset[str] = frozenset({"noti", "n"})
+
+# ``NotificationData.opType`` 中的设备事件（``PushUtil.isEventOpType``）：官方对其
+# 直接 return，不弹通知；本集成同样不作为通知事件抛出。
+OPTYPE_EVENT: int = 10
 
 # subtype 1（设备状态）→ ``SweeperDeviceData`` 字段名（camelCase → snake_case）。
 # 注意：这是 http ``getDeviceData`` 的**子集**——推送不含 ``todayCleanSize`` /
@@ -117,6 +130,123 @@ def decode_push_frame(text: str) -> tuple[str, int, dict[str, Any]] | None:
 
     equip_id = payload.get("equipId") or body.get("equipId") or ""
     return str(equip_id), subtype, payload
+
+
+@dataclass(frozen=True)
+class NotificationPacket:
+    """``noti`` 主题的一条通知。
+
+    字段分两层：外层为投递信息（``id``/``timestamp``/``ttl``/``unicast``，来自
+    ``SocketIOProxyClient.notificationListener``），其余为正文（``PushPayload`` →
+    ``NotificationData``，见官方 ``kernel/push/NotificationData``）。``data`` 保留
+    完整原始 ``NotificationData`` 字典，便于上层按需取未单列的字段。
+    """
+
+    id: str
+    timestamp: int
+    title: str
+    message: str
+    ttl: str | None = None
+    unicast: str | None = None
+    op_type: int | None = None
+    view_type: int | None = None
+    content: str | None = None
+    url: str | None = None
+    img_url: str | None = None
+    mc_id: str | None = None
+    mc_type: int | None = None
+    valid_time: int | None = None
+    data: dict[str, Any] = field(default_factory=dict)
+
+
+def _as_int(value: Any) -> int | None:
+    """尽力把 JSON 值转成 ``int``（兼容字符串/浮点数字形式），失败返回 ``None``。"""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if value.is_integer() else None
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _as_str(value: Any) -> str | None:
+    """非空字符串原样返回，其余（``None``/空串/非字符串）返回 ``None``。"""
+    return value if isinstance(value, str) and value else None
+
+
+def _notification_data(payload: Any) -> dict[str, Any]:
+    """从 ``android.payload`` 取 ``NotificationData``。
+
+    官方把 ``PushPayload`` 序列化成字符串放在 ``android.payload`` 里，故先尝试
+    ``json.loads``；解析失败（或结构不符）时返回空字典（容错，不抛异常）。
+    """
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except ValueError:
+            return {}
+    if not isinstance(payload, dict):
+        return {}
+    data = payload.get("data")
+    return data if isinstance(data, dict) else {}
+
+
+def decode_notification_frame(text: str) -> NotificationPacket | None:
+    """解析一条 ``42["noti"|"n", {...}]`` 通知帧。
+
+    返回 ``NotificationPacket``；非通知事件、畸形帧、或缺少 ``id``（无法回执
+    ``notificationReply``）时返回 ``None``。``android.title`` 为空时仍返回包
+    （官方此时会回执但不展示），由上层决定是否抛出；正文解析失败亦不抛异常。
+    """
+    if not text.startswith("42"):
+        return None
+    try:
+        message = json.loads(text[2:])
+    except ValueError:
+        return None
+    if (
+        not isinstance(message, list)
+        or len(message) < 2
+        or message[0] not in NOTI_EVENT_NAMES
+    ):
+        return None
+    envelope = message[1]
+    if not isinstance(envelope, dict):
+        return None
+
+    raw_id = envelope.get("id")
+    if raw_id is None or raw_id == "":
+        return None
+    packet_id = str(raw_id)
+
+    android = envelope.get("android")
+    if not isinstance(android, dict):
+        android = {}
+    data = _notification_data(android.get("payload"))
+
+    return NotificationPacket(
+        id=packet_id,
+        timestamp=_as_int(envelope.get("timestamp")) or 0,
+        title=_as_str(android.get("title")) or "",
+        message=_as_str(android.get("message")) or "",
+        ttl=_as_str(envelope.get("ttl")),
+        unicast=_as_str(envelope.get("unicast")),
+        op_type=_as_int(data.get("opType")),
+        view_type=_as_int(data.get("viewType")),
+        content=_as_str(data.get("content")),
+        url=_as_str(data.get("url")),
+        img_url=_as_str(data.get("imgUrl")),
+        mc_id=_as_str(data.get("mcId")),
+        mc_type=_as_int(data.get("mcType")),
+        valid_time=_as_int(data.get("validTime")),
+        data=data,
+    )
 
 
 def sweeper_patch_from_push(subtype: int, payload: dict[str, Any]) -> dict[str, Any]:
