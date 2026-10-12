@@ -343,7 +343,7 @@ add(SW,"post","/ai-app/sweeper/rv02/setRoomsClean","setRoomsClean","房间清扫
 add(SW,"post","/ai-app/sweeper/rv02/setTimeZone","setTimeZone","设置时区",[],("form",[("equipId",STR,True,"设备ID"),("timeZone","integer",True,"时区")]),OBJ_R)
 add(SW,"post","/ai-app/sweeper/rv02/setVirtualWall","setVirtualWall","设置虚拟墙",[],("form",[("equipId",STR,True,"设备ID"),("virwallCount","integer",True,"虚拟墙数"),("virwallList",STR,True,"虚拟墙列表"),("mapId","int64",True,"地图ID")]),OBJ_R)
 add(SW,"post","/ai-app/sweeper/rv02/setVoice","setVoice","设置语音",[],("form",[("equipId",STR,True,"设备ID"),("voiceEnable","integer",True,"语音开关"),("volume","integer",True,"音量")]),OBJ_R)
-add(SW,"post","/ai-app/sweeper/rv02/setWorkMode","setWorkMode","设置工作模式",[],("form",[("equipId",STR,True,"设备ID"),("ctrltype","integer",True,"控制类型"),("value","integer",True,"值")]),OBJ_R)
+add(SW,"post","/ai-app/sweeper/rv02/setWorkMode","setWorkMode","设置工作模式",[],("form",[("equipId",STR,True,"设备ID"),("ctrltype","integer",True,"清扫模式（ModeControlTypeEnum）：0=自动清扫、1=沿边清扫、2=仿真拖地、3=回充、4=定点清扫、5=区域清扫、6=探索建图"),("value","integer",True,"动作（ModeControlValueEnum）：0=停止、1=开始、2=暂停、3=FalsePause")]),OBJ_R)
 add(SW,"post","/ai-app/sweeper/rv02/splitMap","splitRoom","分割房间",[],("form",[("equipId",STR,True,"设备ID"),("mapId","int64",True,"地图ID"),("roomId","integer",True,"房间ID"),("pointList",STR,True,"点列表")]),REF_R("SweeperMapEditResponse"))
 
 # ---- Firmware ----

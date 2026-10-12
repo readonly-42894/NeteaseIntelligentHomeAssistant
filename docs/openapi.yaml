@@ -2201,10 +2201,10 @@ paths:
                   description: 设备ID
                 ctrltype:
                   type: integer
-                  description: 控制类型
+                  description: 清扫模式（ModeControlTypeEnum）：0=自动清扫、1=沿边清扫、2=仿真拖地、3=回充、4=定点清扫、5=区域清扫、6=探索建图
                 value:
                   type: integer
-                  description: 值
+                  description: 动作（ModeControlValueEnum）：0=停止、1=开始、2=暂停、3=FalsePause
               required:
               - equipId
               - ctrltype
