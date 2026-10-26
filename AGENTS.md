@@ -18,22 +18,24 @@
 
 ## 提交约定（Commit conventions）
 
-所有由 AI/Agent 参与产生的提交，必须在提交信息末尾附 `Co-Authored-By` 尾注，注明实际参与者：
+所有由 AI/Agent 参与产生的提交，用 `--author` 注明实际模型身份：
 
-1. **模型身份**：实际使用的模型 ID（写全，含 provider 上下文）。
-2. **Agent 应用身份**：实际运行的 Agent 客户端及版本（有则写，没有则省略）。
+1. **模型身份（提交作者）**：`--author "<模型名> <模型id@llm.invalid>"`。模型名取人类可读名称（如 `DeepSeek Flash`），模型 id 取实际运行环境的完整 ID（含 provider 上下文，如 `local2/deepseek-v4-flash`）；`llm.invalid` 为固定占位域名，不可投递。
+2. **Agent 应用身份**：实际运行的 Agent 客户端及版本，作为 `Co-Authored-By` 尾注写在提交正文末尾（有则写，没有则省略）。
 
 格式：
 
-```
+```bash
+git commit --author "<模型名> <模型id@llm.invalid>" -m "$(cat <<'EOF'
 <简短描述>
 
-Co-Authored-By: <模型ID>
 Co-Authored-By: <Agent应用名> v<版本>
+EOF
+)"
 ```
 
-- 模型 ID 与 Agent 客户端/版本取**实际运行环境**（如 `opencode --version`），不要写死在本仓库文件里。
-- 不写邮箱（含占位邮箱，如 `noreply@localhost`），除非确定真实邮箱；多个参与方就写多行。
+- 模型名/ID 与 Agent 客户端版本取**实际运行环境**（如 `opencode --version`、当前会话模型），不要写死在本仓库文件里。
+- 作者邮箱一律用 `<模型id@llm.invalid>`，不写真实邮箱；`Co-Authored-By` 尾注不带邮箱。
 - AI/Agent 在任务闭环（实现完成 + 验证通过）后**直接提交，无需先询问用户**。
 
 ## 文档维护约定
