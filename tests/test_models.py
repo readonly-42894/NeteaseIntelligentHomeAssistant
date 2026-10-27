@@ -67,3 +67,11 @@ def test_missing_fields_tolerated() -> None:
     assert empty.room_list == [] and empty.share_equip_list == []
 
     assert m.FamilyEquip.from_dict({"equipInfo": None}).equip_info is None
+
+
+def test_sweeper_model_prefers_product_sign() -> None:
+    """设备页型号优先用产品系列号（RV02/RV03），未知机型回退云端 model。"""
+    assert m.Equip(product_id=9, model="1").sweeper_model == "RV02"
+    assert m.Equip(product_id=26, model="01").sweeper_model == "RV03"
+    assert m.Equip(product_id=99, model="X").sweeper_model == "X"
+    assert m.Equip(product_id=99).sweeper_model is None

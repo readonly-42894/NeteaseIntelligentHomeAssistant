@@ -70,7 +70,7 @@ class NeteaseIntelligentBatteryChargingSensor(BinarySensorEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, equip.unique_identifier)},
             manufacturer=MANUFACTURER,
-            model=equip.model or None,
+            model=equip.sweeper_model,
             name=equip.alias or equip.name or NAME,
             suggested_area=equip.room_name or None,
         )

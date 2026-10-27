@@ -13,6 +13,11 @@ MANUFACTURER: Final = "Netease"
 # 见 docs/API工作原理.md 第 6 节；RV03 为 Pro 款）。
 SWEEPER_PRODUCT_IDS: Final = frozenset({9, 26})
 
+# 扫地机产品系列号（产品列表接口 ``GET /ai-app/product/list`` 的 ``productSign``）。
+# 云端 ``Product.model`` 是内部型号代码（RV02="1"、RV03="01"），不适合直接作为
+# HA 设备页的型号展示。
+SWEEPER_PRODUCT_MODELS: Final[dict[int, str]] = {9: "RV02", 26: "RV03"}
+
 # 扫地机工作模式（``SweeperDeviceData.workMode``，字符串编码的整数，
 # 见 sweeper/model/WorkModeEnum.java 的 @SerializedName 码值），按语义分组：
 SWEEPER_MODE_CLEANING: Final = frozenset(

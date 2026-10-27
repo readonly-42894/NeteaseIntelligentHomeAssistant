@@ -50,7 +50,7 @@ def _register_sweeper_devices(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, identifier)},
             manufacturer=MANUFACTURER,
-            model=equip.model or None,
+            model=equip.sweeper_model,
             name=equip.alias or equip.name or NAME,
             suggested_area=equip.room_name or None,
         )

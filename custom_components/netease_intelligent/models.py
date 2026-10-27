@@ -20,7 +20,7 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, Self, get_args, get_origin, get_type_hints
 
-from .const import SWEEPER_PRODUCT_IDS
+from .const import SWEEPER_PRODUCT_IDS, SWEEPER_PRODUCT_MODELS
 
 __all__ = [
     "Equip",
@@ -114,6 +114,11 @@ class Equip(_Model):
     def is_sweeper(self) -> bool:
         """是否为扫地机器人（``product_id`` 属于 RV02/RV03）。"""
         return self.product_id in SWEEPER_PRODUCT_IDS
+
+    @property
+    def sweeper_model(self) -> str | None:
+        """设备页展示的型号：产品系列号（RV02/RV03）优先，回退云端 ``model``。"""
+        return SWEEPER_PRODUCT_MODELS.get(self.product_id) or self.model or None
 
     @property
     def unique_identifier(self) -> str:
