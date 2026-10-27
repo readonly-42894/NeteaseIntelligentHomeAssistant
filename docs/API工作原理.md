@@ -13,6 +13,7 @@
 | 统一响应结构（`ResponseWrapper` / `ListResponse`） | [`api/统一响应结构.md`](./api/统一响应结构.md) |
 | 登录流程（网易 URS 登录 SDK） | [`api/登录流程.md`](./api/登录流程.md) |
 | 调用示例 | [`api/调用示例.md`](./api/调用示例.md) |
+| 蓝牙配网（BLE 下发 Wi-Fi 凭据 → 读回 SN → 云端绑定） | [`api/蓝牙配网.md`](./api/蓝牙配网.md) |
 | 集成实现（家庭数据抽象） | [`api/集成实现.md`](./api/集成实现.md) |
 
 以下为总览性章节。
