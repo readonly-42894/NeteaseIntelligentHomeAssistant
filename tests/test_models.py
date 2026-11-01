@@ -75,3 +75,18 @@ def test_sweeper_model_prefers_product_sign() -> None:
     assert m.Equip(product_id=26, model="01").sweeper_model == "RV03"
     assert m.Equip(product_id=99, model="X").sweeper_model == "X"
     assert m.Equip(product_id=99).sweeper_model is None
+
+
+def test_sweeper_device_data_accessories() -> None:
+    """扫地机数据解析配件状态：dustBox/mopType → dust_box/mop_type。"""
+    data = m.SweeperDeviceData.from_dict(
+        {"waterControl": 12, "dustBox": 3, "mopType": 1}
+    )
+    assert data.water_control == 12
+    assert data.dust_box == 3
+    assert data.mop_type == 1
+
+    # 云端未返回时保持 None（区别于真实的 0 码值），水量实体据此不限制。
+    missing = m.SweeperDeviceData.from_dict({"waterControl": 10})
+    assert missing.dust_box is None
+    assert missing.mop_type is None

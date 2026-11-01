@@ -82,6 +82,12 @@ def test_status_patch_work_mode_to_str() -> None:
     assert "junk" not in patch
 
 
+def test_status_patch_accessories() -> None:
+    """subtype 1：dustBox/mopType 一并映射（用于判定水量是否可配置）。"""
+    patch = p.sweeper_patch_from_push(1, {"dustBox": 3, "mopType": 1})
+    assert patch == {"dust_box": 3, "mop_type": 1}
+
+
 def test_map_patch() -> None:
     """subtype 2：mapId/mapUrl/mapType → snake_case。"""
     patch = p.sweeper_patch_from_push(

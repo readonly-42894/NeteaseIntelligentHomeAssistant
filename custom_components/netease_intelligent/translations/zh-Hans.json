@@ -85,7 +85,8 @@
   },
   "entity": {
     "select": {
-      "clean_mode": { "name": "清扫模式" }
+      "clean_mode": { "name": "清扫模式" },
+      "water_level": { "name": "水量" }
     },
     "sensor": {
       "battery": { "name": "电量" },

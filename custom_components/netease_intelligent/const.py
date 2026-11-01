@@ -72,6 +72,7 @@ SWEEPER_ACTION_PAUSE: Final = 2
 
 # 偏好类型（PreferenceTypeEnum，setPreference 的 ctrltype 参数）。
 SWEEPER_PREFERENCE_POWER: Final = 1  # 吸力（WindPowerEnum）
+SWEEPER_PREFERENCE_WATER: Final = 2  # 水量（WaterControlEnum）
 
 # 设备控制类型（DeviceControlTypeEnum，deviceCtrl 的 ctrltype 参数）。
 SWEEPER_CTRL_LOCATE: Final = 3  # 寻找设备
@@ -84,6 +85,56 @@ SWEEPER_WIND_POWER_TO_FAN_SPEED: Final = {
 SWEEPER_FAN_SPEED_TO_WIND_POWER: Final = {
     "关闭": 0, "安静": 1, "标准": 2, "强劲": 3,
 }
+
+# 水量（WaterControlEnum / PreferenceValueEnum.Water*）与 HA select 选项的互映射。
+# 官方「水量调节」弹窗（WaterSeekBar / PowerWaterControlDialog）为四档，
+# 文案取自 R.string.sweeper_power_water_control_water_*：关闭/小/中/大。
+SWEEPER_WATER_LEVELS: Final = ["关闭", "小", "中", "大"]
+SWEEPER_WATER_CONTROL_TO_LEVEL: Final = {
+    10: "关闭", 11: "小", 12: "中", 13: "大",
+}
+SWEEPER_WATER_LEVEL_TO_CONTROL: Final = {
+    "关闭": 10, "小": 11, "中": 12, "大": 13,
+}
+
+# 配件状态（DustBoxEnum / MopTypeEnum）：官方在水箱或拖布未安装时把水量条遮罩。
+SWEEPER_MOP_TYPE_INSTALLED: Final = 1
+SWEEPER_DUST_BOX_WATER: Final = 2
+SWEEPER_DUST_BOX_DUST_AND_WATER: Final = 3
+
+
+def sweeper_water_level(value: int) -> str | None:
+    """把 ``waterControl`` 码值映射为水量档位标签（10=关闭/11=小/12=中/13=大）。
+
+    未知/缺省码值返回 ``None``；纯函数，便于单元测试。
+    """
+    return SWEEPER_WATER_CONTROL_TO_LEVEL.get(value)
+
+
+def sweeper_water_available(
+    dust_box: int | None,
+    mop_type: int | None,
+) -> bool:
+    """水量是否可配置（对应官方 WaterSeekBar 的遮罩逻辑）。
+
+    官方判据（``HomeActivity.onCreate.9`` 启动拖地前的校验，以及
+    ``WaterSeekBar.updateBoxAndMop`` 的遮罩）：水箱未安装（``dustBox`` 不是
+    水箱/尘水盒）或拖布未安装（``mopType != Installed``）时不可调水量。
+
+    云端可能不返回这两个字段，此时按 ``None`` 传入；**字段缺失不限制**，
+    避免因接口缺口把实体永久锁死。两者都有上报时须同时满足。
+    """
+    if mop_type is None and dust_box is None:
+        return True
+    if mop_type is not None and mop_type != SWEEPER_MOP_TYPE_INSTALLED:
+        return False
+    if dust_box is not None and dust_box not in (
+        SWEEPER_DUST_BOX_WATER,
+        SWEEPER_DUST_BOX_DUST_AND_WATER,
+    ):
+        return False
+    return True
+
 
 
 def sweeper_activity(

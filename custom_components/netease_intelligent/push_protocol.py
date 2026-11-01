@@ -76,6 +76,10 @@ _STATUS_FIELDS: dict[str, str] = {
     "waterControl": "water_control",
     "windPower": "wind_power",
     "workMode": "work_mode",
+    # 配件状态：官方推送 DTO ``SweeperPushInfo`` 含 dustBox/mopType，
+    # ``SweeperManager`` 合并推送时一并写回 ``SweeperDeviceData``。
+    "dustBox": "dust_box",
+    "mopType": "mop_type",
 }
 
 # subtype 2（地图）→ ``SweeperDeviceData`` 字段名。

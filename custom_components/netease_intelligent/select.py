@@ -1,16 +1,20 @@
-"""扫地机器人 select 平台：清扫模式。
+"""扫地机器人 select 平台：清扫模式与水量。
 
-复刻官方 App 的「模式选择」底部弹窗（``ModeControlDialog``，见
-``sweeper/modules/widget/ModeControlDialog.java``）：每台扫地机生成一个 select
-实体，选项为官方清扫模式——自动清扫、仿真拖地，Pro 款（RV03）再给「探索建图」、
-非 Pro 款（RV02）给「沿边清扫」。选择即调用 ``setWorkMode(ctrltype, Start)`` 切换
-模式（App 保存监听 ``HomeActivity.onCreate.9`` 同款动作）。
+**清扫模式**：复刻官方 App 的「模式选择」底部弹窗（``ModeControlDialog``，见
+``sweeper/modules/widget/ModeControlDialog.java``）——自动清扫、仿真拖地，Pro 款
+（RV03）再给「探索建图」、非 Pro 款（RV02）给「沿边清扫」。选择即调用
+``setWorkMode(ctrltype, Start)`` 切换模式（App 保存监听 ``HomeActivity.onCreate.9``
+同款动作）。
 
-当前选项由 ``workMode`` 反推（``const.sweeper_clean_mode``，复刻 App 的
-``HomeActivity.getCurrentModeControlType()``）。切换模式后设备需要数秒才回报新
-``workMode``，因此选择后做**乐观更新**（立即把选项改为预期值并写回状态），同时
-触发一次立即刷新，待设备数据确认或超时后回退到真实状态（见
-:data:`ASSUMED_STATE_TTL`）。
+**水量**：复刻官方「水量调节」（``PowerWaterControlDialog`` / ``WaterSeekBar``）——
+四档 关闭/小/中/大，对应 ``waterControl`` 码值 10/11/12/13；选择即调用
+``setPreference(Water, value)``（App ``HomeActivity.onCreate.11`` 同款动作）。
+水箱或拖布未安装时官方把水量条遮罩，本集成同样把实体标为不可用
+（见 :func:`const.sweeper_water_available`）。
+
+切换模式/水量后设备需要数秒才回报新值，因此选择后做**乐观更新**（立即把选项改为
+预期值并写回状态），同时触发一次立即刷新，待设备数据确认或超时后回退到真实状态
+（见 :data:`ASSUMED_STATE_TTL`）。
 """
 
 from __future__ import annotations
@@ -32,8 +36,13 @@ from .const import (
     NAME,
     SWEEPER_ACTION_START,
     SWEEPER_CLEAN_MODE_TO_CTRLTYPE,
+    SWEEPER_PREFERENCE_WATER,
+    SWEEPER_WATER_LEVELS,
+    SWEEPER_WATER_LEVEL_TO_CONTROL,
     sweeper_clean_mode,
     sweeper_clean_modes,
+    sweeper_water_available,
+    sweeper_water_level,
 )
 from .coordinator import (
     NeteaseIntelligentData,
@@ -52,9 +61,9 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up 网易智造扫地机器人清扫模式实体。"""
+    """Set up 网易智造扫地机器人 select 实体（清扫模式、水量）。"""
     data: NeteaseIntelligentData = hass.data[DOMAIN][entry.entry_id]
-    entities: list[NeteaseIntelligentCleanModeSelect] = []
+    entities: list[SelectEntity] = []
     for equip in data.coordinator.sweeper_equips():
         coordinator = data.sweeper_coordinators.get(equip.id)
         if coordinator is None:
@@ -62,15 +71,16 @@ async def async_setup_entry(
         entities.append(
             NeteaseIntelligentCleanModeSelect(data.client, equip, coordinator)
         )
+        entities.append(
+            NeteaseIntelligentWaterLevelSelect(data.client, equip, coordinator)
+        )
     async_add_entities(entities)
 
 
-class NeteaseIntelligentCleanModeSelect(SelectEntity):
-    """网易智造扫地机器人清扫模式实体。"""
+class _SweeperOptimisticSelect(SelectEntity):
+    """带乐观更新的扫地机 select 基类。"""
 
     _attr_has_entity_name = True
-    _attr_translation_key = "clean_mode"
-    _attr_icon = "mdi:robot-vacuum-variant"
 
     def __init__(
         self,
@@ -82,9 +92,6 @@ class NeteaseIntelligentCleanModeSelect(SelectEntity):
         self._equip = equip
         self._coordinator = coordinator
 
-        self._attr_unique_id = f"{equip.unique_identifier}_clean_mode"
-        # 可选模式由机型决定（Pro 款用「探索建图」，非 Pro 用「沿边清扫」）。
-        self._attr_options = list(sweeper_clean_modes(equip.product_id))
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, equip.unique_identifier)},
             manufacturer=MANUFACTURER,
@@ -112,12 +119,12 @@ class NeteaseIntelligentCleanModeSelect(SelectEntity):
 
     @staticmethod
     def _option_from(data: SweeperDeviceData) -> str | None:
-        """把一次扫地机数据映射为清扫模式标签。"""
-        return sweeper_clean_mode(data.work_mode)
+        """把一次扫地机数据映射为选项标签（由子类实现）。"""
+        raise NotImplementedError
 
     @property
     def current_option(self) -> str | None:
-        """当前清扫模式；存在乐观状态时优先返回预期值。"""
+        """当前选项；存在乐观状态时优先返回预期值。"""
         if self._assumed_option is not None:
             return self._assumed_option
         data = self._data
@@ -159,12 +166,15 @@ class NeteaseIntelligentCleanModeSelect(SelectEntity):
             self._assumed_option_until = None
             self._option_before_assumed = None
 
+    async def _async_apply_option(self, option: str) -> None:
+        """把选项下发给云端（由子类实现）。"""
+        raise NotImplementedError
+
     async def async_select_option(self, option: str, **kwargs: object) -> None:
-        """切换到指定清扫模式（``setWorkMode(ctrltype, Start)``，同官方保存监听）。"""
-        ctrltype = SWEEPER_CLEAN_MODE_TO_CTRLTYPE.get(option)
-        if ctrltype is None:
+        """切换到指定选项：下发 → 乐观更新 → 立即刷新。"""
+        if option not in self._attr_options:
             return
-        await self._client.set_work_mode(self._equip.id, ctrltype, SWEEPER_ACTION_START)
+        await self._async_apply_option(option)
         self._assume_option(option)
         self.async_write_ha_state()
         await self._coordinator.async_request_refresh()
@@ -173,4 +183,73 @@ class NeteaseIntelligentCleanModeSelect(SelectEntity):
         """订阅数据刷新，实体随协调器更新（并解析乐观状态）。"""
         self.async_on_remove(
             self._coordinator.async_add_listener(self._handle_coordinator_update)
+        )
+
+
+class NeteaseIntelligentCleanModeSelect(_SweeperOptimisticSelect):
+    """网易智造扫地机器人清扫模式实体。"""
+
+    _attr_translation_key = "clean_mode"
+    _attr_icon = "mdi:robot-vacuum-variant"
+
+    def __init__(
+        self,
+        client: NeteaseIntelligentApiClient,
+        equip: Equip,
+        coordinator: NeteaseIntelligentSweeperCoordinator,
+    ) -> None:
+        super().__init__(client, equip, coordinator)
+        self._attr_unique_id = f"{equip.unique_identifier}_clean_mode"
+        # 可选模式由机型决定（Pro 款用「探索建图」，非 Pro 用「沿边清扫」）。
+        self._attr_options = list(sweeper_clean_modes(equip.product_id))
+
+    @staticmethod
+    def _option_from(data: SweeperDeviceData) -> str | None:
+        """把一次扫地机数据映射为清扫模式标签。"""
+        return sweeper_clean_mode(data.work_mode)
+
+    async def _async_apply_option(self, option: str) -> None:
+        """切换到指定清扫模式（``setWorkMode(ctrltype, Start)``，同官方保存监听）。"""
+        await self._client.set_work_mode(
+            self._equip.id,
+            SWEEPER_CLEAN_MODE_TO_CTRLTYPE[option],
+            SWEEPER_ACTION_START,
+        )
+
+
+class NeteaseIntelligentWaterLevelSelect(_SweeperOptimisticSelect):
+    """网易智造扫地机器人水量实体（拖地水量档位）。"""
+
+    _attr_translation_key = "water_level"
+    _attr_icon = "mdi:water-percent"
+
+    def __init__(
+        self,
+        client: NeteaseIntelligentApiClient,
+        equip: Equip,
+        coordinator: NeteaseIntelligentSweeperCoordinator,
+    ) -> None:
+        super().__init__(client, equip, coordinator)
+        self._attr_unique_id = f"{equip.unique_identifier}_water_level"
+        self._attr_options = list(SWEEPER_WATER_LEVELS)
+
+    @property
+    def available(self) -> bool:
+        """水箱/拖布未安装（且有明确上报）时禁用实体。"""
+        data = self._data
+        if data is None:
+            return False
+        return sweeper_water_available(data.dust_box, data.mop_type)
+
+    @staticmethod
+    def _option_from(data: SweeperDeviceData) -> str | None:
+        """把一次扫地机数据映射为水量档位标签。"""
+        return sweeper_water_level(data.water_control)
+
+    async def _async_apply_option(self, option: str) -> None:
+        """设置水量档位（``setPreference(Water, value)``）。"""
+        await self._client.set_preference(
+            self._equip.id,
+            SWEEPER_PREFERENCE_WATER,
+            SWEEPER_WATER_LEVEL_TO_CONTROL[option],
         )

@@ -85,7 +85,8 @@
   },
   "entity": {
     "select": {
-      "clean_mode": { "name": "Cleaning mode" }
+      "clean_mode": { "name": "Cleaning mode" },
+      "water_level": { "name": "Water level" }
     },
     "sensor": {
       "battery": { "name": "Battery" },

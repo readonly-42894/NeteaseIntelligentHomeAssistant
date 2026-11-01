@@ -114,6 +114,35 @@ def test_fan_speed_mapping_roundtrip() -> None:
         assert c.SWEEPER_WIND_POWER_TO_FAN_SPEED[c.SWEEPER_FAN_SPEED_TO_WIND_POWER[speed]] == speed
 
 
+def test_water_level_mapping_roundtrip() -> None:
+    """水量档位与 waterControl 码值互映射（10=关闭、11=小、12=中、13=大）。"""
+    assert c.SWEEPER_WATER_CONTROL_TO_LEVEL[10] == "关闭"
+    assert c.SWEEPER_WATER_CONTROL_TO_LEVEL[13] == "大"
+    for level in c.SWEEPER_WATER_LEVELS:
+        assert c.sweeper_water_level(c.SWEEPER_WATER_LEVEL_TO_CONTROL[level]) == level
+    # 未知/缺省码值（含模型默认 0）不猜测档位。
+    for value in (0, 1, 9, 14):
+        assert c.sweeper_water_level(value) is None
+
+
+def test_water_available() -> None:
+    """水量可用性：拖布/水箱未安装且明确上报时禁用，字段缺失不限制。"""
+    # 两个字段都缺失（云端未返回）→ 不限制。
+    assert c.sweeper_water_available(None, None)
+    # 拖布状态（MopTypeEnum：0=未安装、1=已安装）。
+    assert not c.sweeper_water_available(None, 0)
+    assert c.sweeper_water_available(None, 1)
+    # 水箱状态（DustBoxEnum：2=水箱、3=尘水盒）。
+    assert c.sweeper_water_available(2, None)
+    assert c.sweeper_water_available(3, None)
+    assert not c.sweeper_water_available(0, None)
+    assert not c.sweeper_water_available(1, None)
+    # 两者都有上报时须同时满足。
+    assert c.sweeper_water_available(3, 1)
+    assert not c.sweeper_water_available(3, 0)
+    assert not c.sweeper_water_available(1, 1)
+
+
 def test_equip_unique_identifier() -> None:
     """唯一标识：sn 优先，回退 id。"""
     assert m.Equip(sn="SN1", id="eq1").unique_identifier == "SN1"

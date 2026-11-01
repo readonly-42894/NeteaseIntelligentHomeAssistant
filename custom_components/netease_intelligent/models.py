@@ -265,6 +265,11 @@ class SweeperDeviceData(_Model):
     water_control: int = 0
     wind_power: int = 0
     work_mode: str = ""
+    # 配件状态：dust_box（DustBoxEnum：0=无、1=尘盒、2=水箱、3=尘水盒）、
+    # mop_type（MopTypeEnum：0=未安装、1=已安装）。用于判定水量是否可配置；
+    # 接口未返回时为 None（区别于真实的 0 码值）。
+    dust_box: int | None = None
+    mop_type: int | None = None
     # 实时轨迹（推送 subtype 3 的 ``position`` 原始数组）。仅由推送注入，轮询
     # 的 getDeviceData 不含该字段；用于在 image 实体上增量重放清扫轨迹。
     map_history: tuple[int, ...] | None = None
