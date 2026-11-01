@@ -1,50 +1,29 @@
-"""pytest 测试环境准备。
+"""pytest 基座：让测试跑在真实 Home Assistant 内核里。
 
-``custom_components/netease_intelligent/__init__.py`` 会导入 ``homeassistant``，这是重型
-依赖，单元测试 DTO 层（``const`` / ``models``）时不应引入。这里用一个合成包名
-``netease_intelligent`` 加载这两个纯 Python 模块，使 ``models.py`` 的相对导入
-``from .const import ...`` 正常解析——不修改生产代码，也不打 ``sys.path`` 补丁。
+``pytest-homeassistant-custom-component`` 提供 ``hass`` 夹具（进程内的真实 HA
+实例）与 ``enable_custom_integrations``（允许 HA 加载 ``custom_components/`` 下的
+自定义集成）。本文件只做两件事：
+
+1. 把仓库根目录加入 ``sys.path``，使 ``custom_components.netease_intelligent``
+   成为可导入包（PEP 420 命名空间包，无需额外 ``__init__.py``）；
+2. 对所有测试自动启用自定义集成，避免逐个测试声明。
+
+纯逻辑测试（DTO / 地图解析 / 推送协议）同样经 ``custom_components.netease_intelligent.*``
+导入，与 HA 加载集成时使用的是同一份模块对象，不会出现两套类定义。
 """
 
 from __future__ import annotations
 
-import importlib.util
 import sys
-import types
 from pathlib import Path
 
-_PKG = "netease_intelligent"
-_DIR = Path(__file__).resolve().parents[1] / "custom_components" / "netease_intelligent"
+import pytest
 
-# 注册合成父包，使 ``import netease_intelligent.models`` 可用。
-if _PKG not in sys.modules:
-    _pkg = types.ModuleType(_PKG)
-    _pkg.__path__ = []
-    sys.modules[_PKG] = _pkg
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 
-def _load_module(name: str) -> None:
-    """按合成包路径加载一个纯 Python 模块（幂等）。"""
-    mod_name = f"{_PKG}.{name}"
-    if mod_name in sys.modules:
-        return
-    spec = importlib.util.spec_from_file_location(mod_name, _DIR / f"{name}.py")
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[mod_name] = module
-    spec.loader.exec_module(module)
-
-
-# 依赖顺序：models 相对导入 const。
-_load_module("const")
-_load_module("models")
-
-# ``push_protocol`` 仅依赖 ``.models``（推送帧解析与数据合并）。
-_load_module("push_protocol")
-
-# ``api`` 依赖 ``aiohttp``（见 requirements_test.txt）与 ``.const`` / ``.models``。
-_load_module("api")
-
-# 地图解析仅依赖标准库；渲染依赖 ``PIL``（见 requirements_test.txt）与 ``.map_parser``。
-_load_module("map_parser")
-_load_module("map_render")
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
+    """为所有测试启用 ``custom_components/`` 下的自定义集成。"""

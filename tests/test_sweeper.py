@@ -1,14 +1,13 @@
 """扫地机业务逻辑（``const.sweeper_activity`` 与常量映射）单元测试。
 
 ``sweeper_activity`` 是纯函数（无 homeassistant 依赖），用于把扫地机实时数据
-映射为 HA vacuum 的 ``VacuumActivity`` 成员名，随 ``const.py`` 被 ``conftest.py``
-以合成包名加载。
+映射为 HA vacuum 的 ``VacuumActivity`` 成员名；本文件只做纯逻辑断言，不启动 HA 实例。
 """
 
 from __future__ import annotations
 
-import netease_intelligent.const as c
-import netease_intelligent.models as m
+import custom_components.netease_intelligent.const as c
+import custom_components.netease_intelligent.models as m
 
 
 def test_sweeper_activity_fault() -> None:

@@ -72,11 +72,23 @@
 ## 测试
 
 ```bash
+python3.14 -m venv .venv && . .venv/bin/activate
 pip install -r requirements_test.txt
 pytest
 ```
 
-`tests/` 覆盖家庭域数据模型（`models.py`）的反序列化与容错、API 客户端（`api.py`）的认证/UA 生成、扫地机器人状态映射（`sweeper_activity`），以及地图包解析、实时轨迹（`map_parser.py`）与渲染（`map_render.py`）。测试环境通过 `tests/conftest.py` 用合成包名加载 `const` / `models` / `api` / `map_parser` / `map_render` 这些模块，避免引入 `homeassistant` 依赖；地图测试用 `tests/map_fixture.py` 合成的地图包（不含真实户型数据），渲染测试需要 Pillow（Home Assistant 核心自带，测试环境由 `requirements_test.txt` 安装）。
+测试跑在**进程内的真实 Home Assistant 内核**里（`pytest-homeassistant-custom-component`
+锁定 HA 2026.10.4，要求 Python ≥ 3.14），无需安装、启动或连接任何 HA 实例：
+
+- `tests/test_init.py`：配置项装载与卸载、扫地机设备登记、五个平台实体创建、凭据失败进入 `SETUP_RETRY`；
+- `tests/test_config_flow.py`：登录方式菜单、手动 Cookie 建项、唯一 ID 去重、选项流（地图配色/朝向）；
+- `tests/test_models.py` / `test_api.py` / `test_sweeper.py` / `test_push_protocol.py`：DTO 反序列化、UA 生成、状态映射、推送协议的纯逻辑断言；
+- `tests/test_map_parser.py` / `test_map_history.py` / `test_map_render.py`：地图包解析、实时轨迹重放与 PNG 渲染（需要 Pillow 与 `fonttools`）。
+
+`tests/conftest.py` 把仓库根目录加入 `sys.path`（`custom_components` 作为 PEP 420 命名空间包），
+并自动启用自定义集成加载，因此测试导入的模块与 HA 加载集成时是同一份对象。
+测试内注入的 API 客户端替身不会发起任何网络请求；地图测试用 `tests/map_fixture.py`
+合成的地图包（不含真实户型数据）。
 
 ## 许可
 

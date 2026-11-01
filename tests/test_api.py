@@ -3,7 +3,8 @@
 覆盖：User-Agent / UA-INFO 的生成（复刻 App 的 ``HeaderManager`` 与
 ``CookieManager``），以及认证 Cookie 必须始终携带 ``UA-INFO``。
 
-导入方式见 ``conftest.py``（合成包名 ``netease_intelligent``）。
+导入方式见 ``conftest.py``（测试经 ``custom_components.netease_intelligent`` 导入，
+与 HA 加载集成时使用同一份模块）。
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 import json
 from urllib.parse import unquote_plus
 
-import netease_intelligent.api as api
+import custom_components.netease_intelligent.api as api
 
 
 def test_build_user_agent() -> None:

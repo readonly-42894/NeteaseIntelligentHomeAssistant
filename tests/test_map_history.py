@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-import netease_intelligent.map_parser as mp
+import custom_components.netease_intelligent.map_parser as mp
 from map_fixture import build_map
 
 

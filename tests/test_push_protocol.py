@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 
-import netease_intelligent.models as m
-import netease_intelligent.push_protocol as p
+import custom_components.netease_intelligent.models as m
+import custom_components.netease_intelligent.push_protocol as p
 
 
 def _frame(

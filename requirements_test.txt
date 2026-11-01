@@ -1,4 +1,6 @@
-pytest
-aiohttp
-pillow
+# 测试基座：在真实 Home Assistant 内核里跑测试。
+# 该包会一并锁定 homeassistant、pytest、pytest-asyncio、aiohttp、Pillow 等版本
+# （当前对应 HA 2026.10.4），因此这里不再单独声明 pytest / aiohttp / pillow。
+pytest-homeassistant-custom-component==0.13.375
+# 地图渲染测试读取内置字体度量（自定义集成运行时不需要）。
 fonttools

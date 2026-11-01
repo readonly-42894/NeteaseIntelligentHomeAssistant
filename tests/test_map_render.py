@@ -13,8 +13,8 @@ import pytest
 from fontTools.ttLib import TTFont
 from PIL import Image, ImageFont
 
-import netease_intelligent.map_parser as mp
-import netease_intelligent.map_render as mr
+import custom_components.netease_intelligent.map_parser as mp
+import custom_components.netease_intelligent.map_render as mr
 from map_fixture import build_map
 
 

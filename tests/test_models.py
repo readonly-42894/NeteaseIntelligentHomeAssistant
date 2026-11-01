@@ -3,12 +3,13 @@
 覆盖：DTO 反序列化（camelCase → snake_case）、嵌套模型、列表展开（``Family.equips``）、
 缺字段 / ``None`` 容错。
 
-导入方式见 ``conftest.py``（合成包名 ``netease_intelligent``，避免引入 homeassistant 依赖）。
+导入方式见 ``conftest.py``（测试经 ``custom_components.netease_intelligent`` 导入，
+与 HA 加载集成时使用同一份模块）。
 """
 
 from __future__ import annotations
 
-import netease_intelligent.models as m
+import custom_components.netease_intelligent.models as m
 
 _SAMPLE = {
     "familyList": [{
