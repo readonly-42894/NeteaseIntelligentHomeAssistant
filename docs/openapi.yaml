@@ -1779,10 +1779,10 @@ paths:
                   description: 设备ID
                 ctrltype:
                   type: integer
-                  description: 控制类型
+                  description: 控制类型（PreferenceTypeEnum）：1=吸力、2=水量、3=重复清扫、4=断点续扫、5=地毯增压、6=记忆地图
                 value:
                   type: integer
-                  description: 值
+                  description: 值（PreferenceValueEnum）：0=关闭、1=开启/低档、2=中档、3=高档；水量为 10=关闭、11=小、12=中、13=大
               required:
               - equipId
               - ctrltype
@@ -3477,8 +3477,15 @@ components:
           type: string
         waterControl:
           type: integer
+          description: 水量档位（WaterControlEnum）：10=关闭、11=小、12=中、13=大。
         windPower:
           type: integer
+        dustBox:
+          type: integer
+          description: 尘盒类型（DustBoxEnum）：0=无、1=尘盒、2=水箱、3=尘盒+水箱。与 mopType 一起决定水量是否可调。
+        mopType:
+          type: integer
+          description: 拖布安装状态（MopTypeEnum）：0=未安装、1=已安装。未安装时 App 将水量条遮罩。
         workMode:
           type: string
     SweeperFirmwareInfo:

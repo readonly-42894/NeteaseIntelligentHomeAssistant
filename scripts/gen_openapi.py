@@ -140,11 +140,14 @@ S["SweeperDeviceData"] = schema({"areaCleanFlag": INT, "isOnline": BOOL, "isOTAU
     "cleanTime": INT, "faultCode": INT, "faultType": INT, "todayCleanSize": INT,
     "todayCleanTime": INT, "cleanSchemeId": I64, "mapId": I64, "mapType": INT,
     "repeatClean": INT, "mapUrl": STR, "protocolVersion": STR, "waterControl": INT,
-    "windPower": INT, "workMode": STR},
+    "windPower": INT, "dustBox": INT, "mopType": INT, "workMode": STR},
     descs={
         "faultCode": "设备上报的故障/状态码；仅当 faultType==1 时才是故障（faultCode 决定错误文案）。"
                      "2101/2103/2105 为「在充电座/充电中」等状态，2108 为重置定位提示，518 为低电量重试告警。",
         "faultType": "故障类型：1=设备故障（App 的 ErrorToast 仅在此值显示错误横幅），其余值不代表错误。",
+        "waterControl": "水量档位（WaterControlEnum）：10=关闭、11=小、12=中、13=大。",
+        "dustBox": "尘盒类型（DustBoxEnum）：0=无、1=尘盒、2=水箱、3=尘盒+水箱。与 mopType 一起决定水量是否可调。",
+        "mopType": "拖布安装状态（MopTypeEnum）：0=未安装、1=已安装。未安装时 App 将水量条遮罩。",
     })
 S["SweeperFirmwareInfo"] = schema({"firmwareVersion": STR})
 S["SweeperLogData"] = schema({"cleanArea": INT, "cleanTime": INT, "cleanType": STR, "faultType": STR,
@@ -327,7 +330,7 @@ add(SW,"get","/ai-app/sweeper/rv02/getSettings","getSweeperSetting","扫地机�
 add(SW,"get","/ai-app/sweeper/rv03/trap-map","getTrapMap","陷阱地图",[("equipId",STR,True,"设备ID")],None,REF_R("TrapMapRsp"))
 add(SW,"post","/ai-app/sweeper/rv02/mergeMap","mergeRoom","合并房间",[],("form",[("equipId",STR,True,"设备ID"),("mapId","int64",True,"地图ID"),("rooms",STR,True,"房间")]),REF_R("SweeperMapEditResponse"))
 add(SW,"post","/ai-app/sweeper/rv02/setArea","setArea","设置区域",[],("form",[("equipId",STR,True,"设备ID"),("areaCount","integer",True,"区域数"),("areaList",STR,True,"区域列表"),("mapId","int64",True,"地图ID")]),OBJ_R)
-add(SW,"post","/ai-app/sweeper/rv02/setPreference","setCleanPreference","清扫偏好",[],("form",[("equipId",STR,True,"设备ID"),("ctrltype","integer",True,"控制类型"),("value","integer",True,"值")]),OBJ_R)
+add(SW,"post","/ai-app/sweeper/rv02/setPreference","setCleanPreference","清扫偏好",[],("form",[("equipId",STR,True,"设备ID"),("ctrltype","integer",True,"控制类型（PreferenceTypeEnum）：1=吸力、2=水量、3=重复清扫、4=断点续扫、5=地毯增压、6=记忆地图"),("value","integer",True,"值（PreferenceValueEnum）：0=关闭、1=开启/低档、2=中档、3=高档；水量为 10=关闭、11=小、12=中、13=大")]),OBJ_R)
 add(SW,"post","/ai-app/sweeper/rv03/set-clean-scheme","setCleanScheme","设置清扫方案",[],("json","SetSchemeReq"),OBJ_R)
 add(SW,"post","/ai-app/sweeper/rv02/setCurrentMap","setCurrentMap","设置当前地图",[],("form",[("equipId",STR,True,"设备ID"),("mapId","int64",True,"地图ID")]),OBJ_R)
 add(SW,"post","/ai-app/sweeper/rv02/setMapInfo","setMapInfo","设置地图信息",[],("form",[("equipId",STR,True,"设备ID"),("mapId","int64",True,"地图ID"),("mapName",STR,False,"地图名"),("roomInfo",STR,False,"房间信息")]),OBJ_R)
