@@ -58,11 +58,12 @@
   "options": {
     "step": {
       "init": {
-        "title": "Map display",
-        "description": "Choose the color scheme and orientation for the robot vacuum map.",
+        "title": "Display and notifications",
+        "description": "Choose the color scheme and orientation for the robot vacuum map, and whether received notifications appear in the notification panel.",
         "data": {
           "map_theme": "Color scheme",
-          "map_rotation": "Orientation"
+          "map_rotation": "Orientation",
+          "show_notifications": "Show received notifications"
         }
       }
     }

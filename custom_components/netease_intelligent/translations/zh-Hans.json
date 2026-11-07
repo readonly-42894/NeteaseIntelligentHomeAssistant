@@ -58,11 +58,12 @@
   "options": {
     "step": {
       "init": {
-        "title": "地图显示",
-        "description": "选择扫地机器人地图的配色与朝向。",
+        "title": "显示与通知",
+        "description": "选择扫地机器人地图的配色与朝向，以及是否把收到的通知显示到通知面板。",
         "data": {
           "map_theme": "配色",
-          "map_rotation": "朝向"
+          "map_rotation": "朝向",
+          "show_notifications": "显示收到的通知"
         }
       }
     }

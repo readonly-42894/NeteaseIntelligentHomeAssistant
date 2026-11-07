@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -11,8 +12,10 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import ApiError, NeteaseIntelligentApiClient
 from .const import (
+    CONF_SHOW_NOTIFICATIONS,
     CONF_TOKEN,
     CONF_TOKEN_ID,
+    DEFAULT_SHOW_NOTIFICATIONS,
     DOMAIN,
     EVENT_NOTIFICATION,
     MANUFACTURER,
@@ -82,6 +85,36 @@ def _fire_notification(hass: HomeAssistant, packet: NotificationPacket) -> None:
     )
 
 
+def _create_persistent_notification(
+    hass: HomeAssistant, packet: NotificationPacket
+) -> None:
+    """把一条官方通知写入 HA 通知面板（``persistent_notification``）。
+
+    正文优先用 ``android.message``，为空时回退 ``NotificationData.content``；
+    有 ``url`` 时在正文末尾追加 Markdown 链接。``notification_id`` 按包 id 生成，
+    每条通知独立、可在通知面板逐条关闭（重连重放的同一 id 已被上游去重）。
+    """
+    message = packet.message or packet.content or ""
+    if packet.url:
+        link = f"[查看详情]({packet.url})"
+        message = f"{message}\n\n{link}" if message else link
+    persistent_notification.async_create(
+        hass,
+        message,
+        title=packet.title,
+        notification_id=f"{DOMAIN}_notification_{packet.id}",
+    )
+
+
+def _handle_notification(
+    hass: HomeAssistant, entry: ConfigEntry, packet: NotificationPacket
+) -> None:
+    """分发一条官方通知：事件总线始终触发，通知面板受选项控制（默认开启）。"""
+    _fire_notification(hass, packet)
+    if entry.options.get(CONF_SHOW_NOTIFICATIONS, DEFAULT_SHOW_NOTIFICATIONS):
+        _create_persistent_notification(hass, packet)
+
+
 async def _async_setup_push(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -92,7 +125,8 @@ async def _async_setup_push(
     """建立官方推送通道（轮询为基础，推送为实时增补）。
 
     通知（``noti`` 主题）订阅与是否有扫地机无关：只要有 ``pid`` 就启动，收到通知时
-    在事件总线触发 ``EVENT_NOTIFICATION``（回调见 ``_fire_notification``）。仅当
+    在事件总线触发 ``EVENT_NOTIFICATION``，并按选项写入 HA 持久通知（回调见
+    ``_handle_notification``）。仅当
     账号信息获取失败或缺少 ``pid`` 时返回 ``None``，集成退回纯轮询，不影响主流程。
     """
     try:
@@ -118,7 +152,7 @@ async def _async_setup_push(
         equip_products,
     )
     push_client.set_notification_callback(
-        lambda packet: _fire_notification(hass, packet)
+        lambda packet: _handle_notification(hass, entry, packet)
     )
     await push_client.async_start()
     _LOGGER.debug(

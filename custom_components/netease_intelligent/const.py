@@ -299,8 +299,13 @@ PUSH_EVENT_EXIT_PAGE: Final = 2
 
 # 集成抛出的 HA 事件：收到官方 ``noti`` 主题通知、且非设备事件（opType != 10）时，
 # 在事件总线上触发（见 __init__.py / push.py，协议见 docs/api/集成实现.md
-#「通知（noti 主题）」小节）。
+#「通知（noti 主题）」小节）。事件始终触发，不受下方通知开关影响。
 EVENT_NOTIFICATION: Final = "netease_intelligent_notification"
+
+# 是否把收到的通知写入 HA 持久通知（``persistent_notification``，通知面板可见）。
+# 默认开启；仅影响通知面板，事件总线与推送回执/去重逻辑不受影响。
+CONF_SHOW_NOTIFICATIONS: Final = "show_notifications"
+DEFAULT_SHOW_NOTIFICATIONS: Final = True
 
 
 def push_uid(pid: int) -> str:

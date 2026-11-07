@@ -21,6 +21,7 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -32,11 +33,13 @@ from .const import (
     CONF_MAP_THEME,
     CONF_PASSWORD,
     CONF_PHONE,
+    CONF_SHOW_NOTIFICATIONS,
     CONF_SMS_CODE,
     CONF_TOKEN,
     CONF_TOKEN_ID,
     DEFAULT_MAP_ROTATION,
     DEFAULT_MAP_THEME,
+    DEFAULT_SHOW_NOTIFICATIONS,
     DOMAIN,
     MAP_ROTATION_OPTIONS,
     MAP_THEME_OPTIONS,
@@ -216,12 +219,12 @@ class NeteaseIntelligentConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class NeteaseIntelligentOptionsFlow(OptionsFlow):
-    """Handle options for 网易智造（地图配色与朝向）。"""
+    """Handle options for 网易智造（地图配色、朝向与通知开关）。"""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """选择地图配色（浅色/深色）与朝向（旋转角度）。"""
+        """选择地图配色/朝向，以及是否把收到的通知显示到通知面板。"""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
@@ -230,6 +233,9 @@ class NeteaseIntelligentOptionsFlow(OptionsFlow):
         )
         current_rotation = self.config_entry.options.get(
             CONF_MAP_ROTATION, DEFAULT_MAP_ROTATION
+        )
+        current_show_notifications = self.config_entry.options.get(
+            CONF_SHOW_NOTIFICATIONS, DEFAULT_SHOW_NOTIFICATIONS
         )
         return self.async_show_form(
             step_id="init",
@@ -251,6 +257,10 @@ class NeteaseIntelligentOptionsFlow(OptionsFlow):
                             mode=SelectSelectorMode.DROPDOWN,
                         )
                     ),
+                    vol.Required(
+                        CONF_SHOW_NOTIFICATIONS,
+                        default=current_show_notifications,
+                    ): BooleanSelector(),
                 }
             ),
         )

@@ -1,6 +1,7 @@
 """配置流（``config_flow.py``）在真实 Home Assistant 内核中的测试。
 
-覆盖：登录方式菜单、手动录入 Cookie 凭据建项、唯一 ID 去重、选项流（地图配色/朝向）。
+覆盖：登录方式菜单、手动录入 Cookie 凭据建项、唯一 ID 去重、选项流（地图配色/朝向/
+通知开关）。
 配置项创建后 HA 会立即装载集成，这里替换 ``async_setup_entry`` 以免发起真实网络请求。
 """
 
@@ -18,8 +19,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.netease_intelligent.const import (
     CONF_MAP_ROTATION,
     CONF_MAP_THEME,
+    CONF_SHOW_NOTIFICATIONS,
     CONF_TOKEN,
     CONF_TOKEN_ID,
+    DEFAULT_SHOW_NOTIFICATIONS,
     DOMAIN,
 )
 
@@ -97,7 +100,7 @@ async def test_manual_step_aborts_on_duplicate(hass: HomeAssistant) -> None:
 
 
 async def test_options_flow_save(hass: HomeAssistant) -> None:
-    """选项流：保存地图配色与朝向后写入配置项选项。"""
+    """选项流：保存地图配色、朝向与通知开关后写入配置项选项。"""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="tid",
@@ -112,9 +115,36 @@ async def test_options_flow_save(hass: HomeAssistant) -> None:
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_MAP_THEME: "dark", CONF_MAP_ROTATION: "90"},
+        {
+            CONF_MAP_THEME: "dark",
+            CONF_MAP_ROTATION: "90",
+            CONF_SHOW_NOTIFICATIONS: False,
+        },
     )
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_MAP_THEME: "dark", CONF_MAP_ROTATION: "90"}
+    assert entry.options == {
+        CONF_MAP_THEME: "dark",
+        CONF_MAP_ROTATION: "90",
+        CONF_SHOW_NOTIFICATIONS: False,
+    }
+
+
+async def test_options_flow_defaults_show_notifications(hass: HomeAssistant) -> None:
+    """选项流：通知开关默认开启，未保存过选项时表单默认值为 True。"""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="tid",
+        unique_id="tid",
+        data={CONF_TOKEN: "token", CONF_TOKEN_ID: "tid"},
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+
+    validated = result["data_schema"](
+        {CONF_MAP_THEME: "light", CONF_MAP_ROTATION: "0"}
+    )
+    assert validated[CONF_SHOW_NOTIFICATIONS] is DEFAULT_SHOW_NOTIFICATIONS
