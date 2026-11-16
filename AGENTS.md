@@ -20,7 +20,7 @@
 
 所有由 AI/Agent 参与产生的提交，用 `--author` 注明实际模型身份：
 
-1. **模型身份（提交作者）**：`--author "<模型名> <模型id@llm.invalid>"`。模型名取人类可读名称（如 `DeepSeek Flash`），模型 id 取实际运行环境的完整 ID（含 provider 上下文，如 `local2/deepseek-v4-flash`）；`llm.invalid` 为固定占位域名，不可投递。
+1. **模型身份（提交作者）**：`--author "<模型名> <模型id@llm.invalid>"`。模型名取人类可读名称（如 `DeepSeek Flash`），模型 id 取实际运行环境的模型 ID、不带 provider 前缀（如 `deepseek-v4-flash`）；`llm.invalid` 为固定占位域名，不可投递。
 2. **Agent 应用身份**：实际运行的 Agent 客户端及版本，作为 `Co-Authored-By` 尾注写在提交正文末尾（有则写，没有则省略）。
 
 格式：
